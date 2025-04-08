@@ -38,11 +38,11 @@
   
   
   <script>
+  import api from "@/services/api";
   import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
   import { library } from "@fortawesome/fontawesome-svg-core";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   
-  // Add the icon to the FontAwesome library
   library.add(faArrowLeft);
   
   export default {
@@ -58,12 +58,25 @@
       };
     },
     methods: {
-      handleRegister() {
-        console.log("Registering with:", this.fullName, this.email, this.phone, this.password);
-        // Add registration logic later
+      async handleRegister() {
+        try {
+          const response = await api.post("/register", {
+            email: this.email,
+            password: this.password,
+            fullname: this.fullname,
+            phonenumber: this.phonenumber,
+          });
+
+          console.log(response.data);
+          alert("Registration successful! Please login.");
+          this.$router.push("/login");
+        } catch (error) {
+          console.error("Registration failed:", error.response?.data?.detail || error.message);
+          alert(error.response?.data?.detail || "Registration failed.");
+        }
       },
       goBack() {
-        this.$router.go(-1); // Go back to the previous page
+        this.$router.go(-1);
       },
     },
   };

@@ -28,25 +28,40 @@
   </template>
   
   <script>
+  import api from "@/services/api";
+
   export default {
     data() {
       return {
         email: "",
         password: "",
         rememberMe: false,
+        errorMessage: "",
       };
     },
     methods: {
-      handleLogin() {
-        console.log("Logging in with", this.email, this.password);
-        // Add authentication logic later
+      async handleLogin() {
+        try {
+          const response = await api.post("/login", {
+            email: this.email,
+            password: this.password,
+          });
+
+          const token = response.data.access_token;
+          localStorage.setItem("token", token); // Store JWT token
+
+          this.$router.push("/dashboard"); // Redirect after login
+          
+        } catch (error) {
+          this.errorMessage = "Invalid email or password"; 
+        }
       },
       goToRegister() {
         this.$router.push("/register");
       },
       goToForgetPassword() {
         this.$router.push("/forget-password");
-      }
+      },
     },
   };
   </script>

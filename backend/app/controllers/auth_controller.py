@@ -44,6 +44,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email, 
         password=hashed_password,
         full_name=user.full_name,
+        role="supplier",
         phone_number=user.phone_number
     )
     
@@ -65,4 +66,3 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer"}
 
 
-#testing

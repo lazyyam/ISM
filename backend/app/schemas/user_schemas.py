@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     password: Annotated[str, 8, 100]
     full_name: Annotated[str, 2, 50]
     role: Annotated[str, 5, 20]
+    phone_number: Annotated[str, 10, 15]
 
 class UserResponse(BaseModel):
     id: int
