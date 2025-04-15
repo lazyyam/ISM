@@ -11,8 +11,8 @@
         <form @submit.prevent="handleRegister">
           <div class="input-row">
             <div class="input-group">
-              <label for="fullName">Full Name</label>
-              <input type="text" id="fullName" v-model="fullName" placeholder="Enter your full name" required />
+              <label for="full_name">Full Name</label>
+              <input type="text" id="full_name" v-model="full_name" placeholder="Enter your full name" required />
             </div>
           </div>
           <div class="input-row">
@@ -21,8 +21,8 @@
               <input type="email" id="email" v-model="email" placeholder="Enter your email" required />
             </div>
             <div class="input-group">
-              <label for="phone">Phone No.</label>
-              <input type="text" id="phone" v-model="phone" placeholder="Enter your phone number" required />
+              <label for="phone_number">Phone No.</label>
+              <input type="text" id="phone_number" v-model="phone_number" placeholder="Enter your phone number" required />
             </div>
           </div>
           <div class="input-group">
@@ -51,9 +51,9 @@
     },
     data() {
       return {
-        fullName: "",
+        full_name: "",
         email: "",
-        phone: "",
+        phone_number: "",
         password: "",
       };
     },
@@ -63,16 +63,23 @@
           const response = await api.post("/register", {
             email: this.email,
             password: this.password,
-            fullname: this.fullname,
-            phonenumber: this.phonenumber,
+            full_name: this.full_name,
+            role: "supplier",
+            phone_number: this.phone_number,
           });
 
           console.log(response.data);
           alert("Registration successful! Please login.");
           this.$router.push("/login");
+
         } catch (error) {
           console.error("Registration failed:", error.response?.data?.detail || error.message);
-          alert(error.response?.data?.detail || "Registration failed.");
+
+          const errorMessage = error.response?.data?.detail 
+            ? JSON.stringify(error.response.data.detail) // Converts the error object to a readable string
+            : "Registration failed.";
+          
+          alert(errorMessage);
         }
       },
       goBack() {

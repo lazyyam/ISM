@@ -2,3 +2,134 @@ npm run serve
 .venv\Scripts\Activate.ps1   
 python -m uvicorn main:app --reload   
 mysql -u root -p
+
+ismsysadm@gmail.com
+Ism12312Ism
+
+
+
+
+
+Manager Dashboard (Focused on Operations & Overview)
+📊 Key Metrics & Overview
+
+Total inventory stock
+
+Low stock alerts
+
+Recent orders & incoming shipments
+
+Supplier performance insights
+
+📦 Inventory Management
+
+View stock levels across all products
+
+Add/remove/update inventory items
+
+Set reorder points and restock alerts
+
+🛒 Order Tracking
+
+Pending, in-progress, and completed orders
+
+Incoming shipments from suppliers
+
+Delivery timelines and ETA
+
+📈 Analytics & Reports
+
+Monthly sales & inventory trends
+
+Supplier performance reports
+
+Inventory turnover ratio
+
+🛠 User & Role Management
+
+Add/remove suppliers
+
+Assign inventory tasks
+
+Supplier Dashboard (Focused on Product & Order Fulfillment)
+🛠 Product Management
+
+Add/update/delete products
+
+View available stock at supplier level
+
+📦 Order Fulfillment
+
+View & manage received orders
+
+Update order status (processing, shipped, delivered)
+
+Generate invoices
+
+🚚 Shipment Tracking
+
+Monitor delivery statuses
+
+Notify managers of shipment delays
+
+📈 Sales & Performance Insights
+
+Supplier-specific order reports
+
+Best-selling products
+
+How to Implement It?
+Use charts & metrics for instant insights.
+
+Provide filter & search functionality for quick access.
+
+Ensure role-based permissions so managers & suppliers only see relevant data.
+
+Would you like help with UI/UX ideas for these dashboards? 🚀 It seems you’re working on this in Figma—I can provide suggestions based on best practices! 😊
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Since managers and suppliers have different responsibilities in your inventory management system, their first page after login should reflect what’s most important for their workflow.
+
+Manager First Page (Dashboard Overview)
+When a manager logs in, their first page should be an operational dashboard showing critical inventory stats and alerts. This helps them immediately assess the health of the system. Here’s what it could include:
+
+📊 Inventory Summary → Total stock levels & low-stock warnings
+
+🔔 Restock Alerts → Items that need urgent replenishment
+
+🛒 Recent Orders → View pending & completed orders
+
+🚚 Supplier Performance → Deliveries and order fulfillment rates
+
+📈 Sales & Analytics → Trends, monthly insights, and reports
+
+🎯 Goal: Enable managers to make quick decisions about inventory, orders, and supplier performance.
+
+Supplier First Page (Order & Shipment Overview)
+When a supplier logs in, their first page should focus on order fulfillment and managing their product inventory. This helps them prioritize deliveries and stock updates. Suggested content:
+
+📦 Pending Orders → Orders waiting to be processed
+
+🚚 Shipment Tracking → View current deliveries and expected arrival times
+
+🔄 Inventory Updates → Stock levels, recent product changes
+
+🏆 Best-Selling Products → Products in high demand
+
+📜 Invoices & Payments → Manage billing
+
+🎯 Goal: Make it easy for suppliers to track orders and keep inventory up-to-date.
+
+This role-based dashboard approach ensures each user sees relevant information right away. Would you like UI layout suggestions for these dashboards? 🚀

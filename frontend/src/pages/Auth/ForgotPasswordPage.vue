@@ -1,12 +1,12 @@
 <template>
-    <div class="forget-password-container">
-      <div class="forget-password-box">
+    <div class="forgot-password-container">
+      <div class="forgot-password-box">
         <font-awesome-icon
           icon="arrow-left"
           class="back-icon"
           @click="goBack"
         />
-        <h2 class="title">Forgot Password</h2>
+        <h2 class="title">Reset your password</h2>
         <p class="description">
           Enter your email to receive a password reset link.
         </p>
@@ -21,7 +21,7 @@
               placeholder="Enter your email"
             />
           </div>
-          <button type="submit" class="submit-btn">
+          <button type="submit" class="submit-btn" :disable="message">
             Send Reset Link
           </button>
         </form>
@@ -31,6 +31,7 @@
   </template>
   
   <script>
+  import api from "@/services/api";
   import { library } from "@fortawesome/fontawesome-svg-core";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
@@ -44,25 +45,27 @@
       return {
         email: "",
         message: "",
+        isLoading: false,
       };
     },
     methods: {
       async submitEmail() {
+        this.isLoading = true;
         try {
-          const response = await fetch("http://localhost:8000/api/forgot-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: this.email }),
+          await api.post("/forgot-password", {
+            email: this.email.trim().toLowerCase(),
           });
   
-          const data = await response.json();
-          if (response.ok) {
-            this.message = "A password reset link has been sent to your email.";
-          } else {
-            this.message = data.detail || "Error sending reset link.";
-          }
+          this.message = "A password reset link has been sent to your email.";
+          
         } catch (error) {
-          this.message = "An error occurred. Please try again.";
+          if (error.response && error.response.data) {
+            this.message = error.response.data.detail || "Error sending reset link.";
+          } else {
+            this.message = "An error occurred. Please try again.";
+          }
+        } finally {
+          this.isLoading = false;
         }
       },
       goBack() {
@@ -78,7 +81,7 @@
     color: #101540;
   }
    
-  .forget-password-container {
+  .forgot-password-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -86,7 +89,7 @@
     background-color: #f0f1f3;
   }
   
-  .forget-password-box {
+  .forgot-password-box {
     background: white;
     padding: 2rem;
     border-radius: 8px;

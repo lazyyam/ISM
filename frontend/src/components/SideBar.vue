@@ -1,95 +1,150 @@
 <template>
-    <div class="sidebar">
+  <div class="sidebar">
+    <div class="logo-container">
       <img src="@/assets/img/ISM_LOGO.png" alt="ISM Logo" class="logo" />
-      <nav>
-        <ul>
-          <li @click="navigate('/manage-account')">
-            <img src="@/assets/icons/manage_account.png" alt="Manage Account" />
-            <span>Manage Account</span>
-          </li>
-          <li @click="navigate('/product-catalog')">
-            <img src="@/assets/icons/product_catalog.png" alt="Product Catalog" />
-            <span>Product Catalog</span>
-          </li>
-          <li @click="navigate('/purchase-order')">
-            <img src="@/assets/icons/purchase_order.png" alt="Purchase Order" />
-            <span>Purchase Order</span>
-          </li>
-          <li v-if="role === 'supplier'" @click="navigate('/extra-page-1')">
-            <img src="@/assets/icons/extra1.png" alt="Extra Page 1" />
-            <span>Extra Page 1</span>
-          </li>
-          <li v-if="role === 'supplier'" @click="navigate('/extra-page-2')">
-            <img src="@/assets/icons/extra2.png" alt="Extra Page 2" />
-            <span>Extra Page 2</span>
-          </li>
-          <li @click="logout">
-            <img src="@/assets/icons/logout.png" alt="Log Out" />
-            <span>Log Out</span>
-          </li>
-        </ul>
-      </nav>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    props: {
-      role: {
-        type: String,
-        required: true,
-      },
+    
+    <nav class="nav-menu">
+      <div 
+        v-for="item in sidebarItem" 
+        :key="item.path" 
+        class="nav-item"
+        :class="{ active: isActive(item.path) }"
+        @click="navigate(item)"
+      >
+        <div class="icon-wrapper">
+          <img :src="require(`@/assets/icons/${item.icon}`)" :alt="item.label" />
+        </div>
+        <span>{{ item.label }}</span>
+      </div>
+    </nav>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    role: {
+      type: String,
+      required: true,
     },
-    methods: {
-      navigate(path) {
-        this.$router.push(path);
-      },
-      logout() {
+  },
+  computed: {
+    sidebarItem() {
+      const managerPage = [
+        { path: "/dashboard-manager", icon: "dashboard.png", label: "Dashboard" },
+        { path: "/product-list", icon: "product.png", label: "Product"},
+        { path: "/purchase-order-manager", icon: "purchase_order.png", label: "Purchase Order" },
+        { path: "/reports-list", icon: "reports.png", label: "Report" },
+        { path: "/inventory-analysis", icon: "inventory_analysis.png", label: "Inventory Analysis" },
+        { path: "/suppliers-list", icon: "suppliers.png", label: "Suppliers" },
+      ];
+      
+      const supplierPage = [
+        { path: "/dashboard-supplier", icon: "dashboard.png", label: "Dashboard" },
+        { path: "/manage-account", icon: "manage_account.png", label: "Manage Account" },
+        { path: "/product-catalog", icon: "product_catalog.png", label: "Product Catalog" },
+        { path: "/purchase-order-supplier", icon: "purchase_order.png", label: "Purchase Order" },
+      ];
+
+      const items = [
+        ...(this.role === "manager" ? managerPage : []),
+        ...(this.role === "supplier" ? supplierPage : []),
+      ];
+      
+      items.push({ path: "/login", icon: "log_out.png", label: "Log Out", logout: true });
+      
+      return items;
+    },
+  },
+  methods: {
+    navigate(item) {
+      if (item.logout) {
         console.log("Logging out...");
+        localStorage.removeItem("token");
         this.$router.push("/login");
-      },
+        return;
+      }
+      this.$router.push(item.path);
     },
-  };
-  </script>
-  
-  <style scoped>
-  .sidebar {
-    width: 250px;
-    height: 100vh;
-    background: #101540;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 1rem;
-  }
-  
-  .logo {
-    width: 150px;
-    margin-bottom: 1rem;
-  }
-  
-  nav ul {
-    list-style: none;
-    padding: 0;
-    width: 100%;
-  }
-  
-  nav ul li {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background 0.3s;
-  }
-  
-  nav ul li:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-  
-  nav ul li img {
-    width: 24px;
-    margin-right: 10px;
-  }
-  </style>
-  
+    isActive(path) {
+      return this.$route.path === path;
+    }
+  },
+};
+</script>
+
+<style scoped>
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  background-color: white;
+  border-right: 1px solid #eaeaea;
+  display: flex;
+  flex-direction: column;
+  color: #5c6270;
+}
+
+.logo-container {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.logo {
+  width: 100px;
+  height: auto;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nav-item:hover {
+  background-color: #f5f5f5;
+}
+
+.nav-item.active {
+  color: #0066cc;
+  background-color: #f0f7ff;
+  border-left: 4px solid #0066cc;
+}
+
+.icon-wrapper {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+}
+
+.nav-item img {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+}
+
+.nav-item.active img {
+  opacity: 1;
+}
+
+/* Place logout at the bottom */
+.nav-item:last-child {
+  margin-top: auto;
+  border-top: 1px solid #eaeaea;
+}
+</style>

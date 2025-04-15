@@ -16,8 +16,13 @@
             <label class="remember-me">
               <input type="checkbox" v-model="rememberMe" /> Remember me
             </label>
-            <a href="#" class="forgot-password" @click.prevent="goToForgetPassword">Forgot password?</a>
+            <a href="#" class="forgot-password" @click.prevent="goToForgotPassword">Forgot password?</a>
           </div>
+
+          <p v-if="errorMessage" style="color: red; margin-top: 10px;">
+            {{ errorMessage }}
+          </p>
+
           <button type="submit" class="login-btn">Login</button>
           <button type="button" class="register-btn" @click="goToRegister">
             Create a new account
@@ -29,6 +34,7 @@
   
   <script>
   import api from "@/services/api";
+  import { jwtDecode } from "jwt-decode";
 
   export default {
     data() {
@@ -39,28 +45,65 @@
         errorMessage: "",
       };
     },
+    mounted() {
+    const remembered = localStorage.getItem("rememberChecked") === "true";
+      if (remembered) {
+        this.email = localStorage.getItem("rememberEmail") || "";
+        this.rememberMe = true;
+      }
+    },
     methods: {
       async handleLogin() {
-        try {
-          const response = await api.post("/login", {
-            email: this.email,
-            password: this.password,
-          });
-
-          const token = response.data.access_token;
-          localStorage.setItem("token", token); // Store JWT token
-
-          this.$router.push("/dashboard"); // Redirect after login
-          
-        } catch (error) {
-          this.errorMessage = "Invalid email or password"; 
+      try {
+        const response = await api.post("/login", {
+          email: this.email,
+          password: this.password,
+        });
+        
+        if (!response.data?.access_token) {
+          throw new Error("No access token received");
         }
-      },
+
+        const token = response.data.access_token;
+        localStorage.setItem("token", token);
+
+        if (this.rememberMe) {
+          localStorage.setItem("rememberEmail", this.email);
+          localStorage.setItem("rememberChecked", "true");
+        } else {
+          localStorage.removeItem("rememberEmail");
+          localStorage.setItem("rememberChecked", "false");
+        }
+
+        const decoded = jwtDecode(token);
+
+        if (!decoded.role) {
+          throw new Error("No role in token");
+        }
+
+        localStorage.setItem("role", decoded.role);
+
+        if (decoded.role === "manager") {
+          this.$router.replace("/dashboard-manager");
+          window.location.reload();
+        } else if (decoded.role === "supplier") {
+          this.$router.replace("/dashboard-supplier");
+          window.location.reload();
+        } else {
+          this.$router.push("/login");
+        }
+
+      } catch (error) {
+        this.errorMessage = error.response?.data?.detail || 
+                          error.message || 
+                          "Invalid email or password";
+      }
+    },
       goToRegister() {
         this.$router.push("/register");
       },
-      goToForgetPassword() {
-        this.$router.push("/forget-password");
+      goToForgotPassword() {
+        this.$router.push("/forgot-password");
       },
     },
   };

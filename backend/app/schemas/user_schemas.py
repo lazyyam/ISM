@@ -1,13 +1,13 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Annotated
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: Annotated[str, 8, 100]
-    full_name: Annotated[str, 2, 50]
-    role: Annotated[str, 5, 20]
-    phone_number: Annotated[str, 10, 15]
+    password: str = Field(..., min_length=8, max_length=100)
+    full_name: str = Field(..., min_length=2, max_length=50)
+    role: str = Field(..., min_length=5, max_length=20)
+    phone_number: str = Field(..., min_length=10, max_length=15)
 
 class UserResponse(BaseModel):
     id: int
@@ -21,3 +21,12 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
