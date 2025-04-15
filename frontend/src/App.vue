@@ -3,8 +3,12 @@
     <SideBar
       v-if="isAuthenticated && role && !hideSideBarPages.includes($route.path)"
       :role="role"
+      class="fixed-sidebar"
     />
-    <div class="main-content">
+    <div 
+      class="main-content"
+      :class="{ 'with-sidebar': isAuthenticated && role && !hideSideBarPages.includes($route.path) }"
+    >
       <router-view />
     </div>
   </div>
@@ -71,7 +75,10 @@ export default {
   box-sizing: border-box;
 }
 
-body {
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
   font-family: 'Poppins', Arial, sans-serif;
   background-color: #f5f7fa;
 }
@@ -79,17 +86,33 @@ body {
 .app-container {
   display: flex;
   min-height: 100vh;
+  position: relative;
+}
+
+.fixed-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .main-content {
   flex: 1;
   padding: 20px;
   background-color: #f5f7fa;
-  overflow-y: auto;
+  min-height: 100vh;
 }
 
-.app-container:not(:has(SideBar)) .main-content {
-  width: 100%;
+.main-content.with-sidebar {
+  margin-left: 240px; /* Same as sidebar width */
+}
+
+.app-container:not(:has(.fixed-sidebar)) .main-content {
+  margin-left: 0;
 }
 </style>
 

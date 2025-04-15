@@ -71,7 +71,7 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 30px;
     max-width: 800px;
-    margin: 30px auto;
+    margin: 10px auto;
   }
   
   h1 {

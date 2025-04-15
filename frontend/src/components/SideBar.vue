@@ -77,7 +77,7 @@ export default {
 <style scoped>
 .sidebar {
   width: 240px;
-  height: 100vh;
+  height: 100%;
   background-color: white;
   border-right: 1px solid #eaeaea;
   display: flex;
@@ -102,6 +102,7 @@ export default {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  overflow-y: auto;
 }
 
 .nav-item {
