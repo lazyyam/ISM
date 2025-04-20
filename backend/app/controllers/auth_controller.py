@@ -47,7 +47,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         password=hashed_password,
         full_name=user.full_name,
         role="supplier",
-        phone_number=user.phone_number
+        phone_number=user.phone_number,
+        company_name=user.company_name,
+        company_address=user.company_address
     )
     
     db.add(new_user)
@@ -77,8 +79,6 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     
     return {"access_token": token, "token_type": "bearer"}
     
-
-
 
 @auth_router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):

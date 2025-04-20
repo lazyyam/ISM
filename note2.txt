@@ -1,0 +1,31 @@
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    category VARCHAR(255),
+    code VARCHAR(50) UNIQUE,
+    cost DECIMAL(10,2),
+    retail_price DECIMAL(10,2),
+    stock_threshold INT -- Used to trigger restock alert
+);
+
+CREATE TABLE inventory (
+    id INT PRIMARY KEY,
+    product_id INT,
+    change_amount INT, -- Positive is restock, negative is sale
+    transaction_type ENUM('sale', 'restock'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    batch_id INT,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id) REFERENCES product_batches(batch_id)
+);
+
+CREATE TABLE product_batches (
+    batch_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT,
+    quantity INT,
+    expiry_date DATE,
+    received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+can you modify this ProductPage.vue, the table, add another column called threshold between retail price and quantity, and make every row expandable, and when clicked to expand to many rows under the main row, it will have column of batch id, quantity (for the batch), expiry date, received date
