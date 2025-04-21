@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DECIMAL
+from sqlalchemy.orm import relationship
 from database import Base
 
 class Product(Base):
@@ -11,5 +12,8 @@ class Product(Base):
     cost = Column(DECIMAL(10, 2), nullable=False)
     retail_price = Column(DECIMAL(10, 2), nullable=False)
     stock_threshold = Column(Integer, nullable=False)
+
+    batches = relationship("ProductBatch", back_populates="product", cascade="all, delete-orphan")
+    
 
     

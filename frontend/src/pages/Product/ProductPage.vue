@@ -54,8 +54,8 @@
                 <td>{{ product.category }}</td>
                 <td>{{ product.code }}</td>
                 <td>{{ product.cost }}</td>
-                <td>{{ product.retailPrice }}</td>
-                <td>{{ product.threshold }}</td>
+                <td>{{ product.retail_price }}</td>
+                <td>{{ product.stock_threshold }}</td>
                 <td>{{ product.quantity }}</td>
                 <td class="expand-cell">
                   <button 
@@ -87,15 +87,15 @@
                           :key="index"
                           class="batch-row"
                         >
-                          <div class="batch-column batch-id">{{ batch.batchId }}</div>
+                          <div class="batch-column batch-id">{{ batch.batch_id }}</div>
                           <div class="batch-column batch-quantity">{{ batch.quantity }}</div>
-                          <div class="batch-column batch-expiry">{{ formatDate(batch.expiryDate) }}</div>
-                          <div class="batch-column batch-received">{{ formatDate(batch.receivedDate) }}</div>
+                          <div class="batch-column batch-expiry">{{ formatDate(batch.expiry_date) }}</div>
+                          <div class="batch-column batch-received">{{ formatDate(batch.received_date) }}</div>
                           <div class="batch-column batch-actions">
                             <button class="batch-edit-btn" @click="openBatchEditModal(product.id, batch)">
                               <i class="edit-icon"></i>
                             </button>
-                            <button class="batch-delete-btn" @click="deleteBatch(product.id, batch.batchId)">
+                            <button class="batch-delete-btn" @click="deleteBatch(product.id, batch.batch_id)">
                               <i class="delete-icon"></i>
                             </button>
                           </div>
@@ -177,17 +177,17 @@
               id="productRetailPrice" 
               type="number" 
               step="0.01" 
-              v-model="formData.retailPrice" 
+              v-model="formData.retail_price" 
               class="form-control"
             />
           </div>
           
           <div class="form-group">
-            <label for="productThreshold">Product Threshold:</label>
+            <label for="productThreshold">Stock Threshold:</label>
             <input 
               id="productThreshold" 
               type="number" 
-              v-model="formData.threshold" 
+              v-model="formData.stock_threshold" 
               class="form-control"
             />
           </div>
@@ -218,18 +218,7 @@
         :title="batchModalTitle"
         @close="closeBatchModal"
       >
-        <div class="product-form">
-          <div class="form-group">
-            <label for="batchId">Batch ID:</label>
-            <input 
-              id="batchId" 
-              type="text" 
-              v-model="batchFormData.batchId" 
-              class="form-control"
-              :disabled="isEditingBatch"
-            />
-          </div>
-          
+        <div class="product-form">      
           <div class="form-group">
             <label for="batchQuantity">Quantity:</label>
             <input 
@@ -245,7 +234,7 @@
             <input 
               id="expiryDate" 
               type="date" 
-              v-model="batchFormData.expiryDate" 
+              v-model="batchFormData.expiry_date" 
               class="form-control"
             />
           </div>
@@ -255,7 +244,7 @@
             <input 
               id="receivedDate" 
               type="date" 
-              v-model="batchFormData.receivedDate" 
+              v-model="batchFormData.received_date" 
               class="form-control"
             />
           </div>
@@ -272,6 +261,7 @@
   
   <script>
   import BaseModal from '@/components/BaseModal.vue';
+  import api from "@/services/api";
   
   export default {
     name: 'ProductPage',
@@ -293,85 +283,21 @@
           category: '',
           code: '',
           cost: '',
-          retailPrice: '',
-          threshold: '',
+          retail_price: '',
+          stock_threshold: '',
           quantity: ''
         },
         batchFormData: {
-          batchId: '',
+          batch_id: '',
           quantity: '',
-          expiryDate: '',
-          receivedDate: ''
+          expiry_date: '',
+          received_date: ''
         },
-        products: [
-          {
-            id: 1,
-            name: 'Milo 1kg',
-            category: 'Drinks',
-            code: '123456',
-            cost: '16.00',
-            retailPrice: '19.95',
-            threshold: 5,
-            quantity: 15,
-            batches: [
-              {
-                batchId: 'B001',
-                quantity: 8,
-                expiryDate: '2025-12-31',
-                receivedDate: '2025-01-15'
-              },
-              {
-                batchId: 'B002',
-                quantity: 7,
-                expiryDate: '2026-01-15',
-                receivedDate: '2025-02-20'
-              }
-            ]
-          },
-          {
-            id: 2,
-            name: 'Febreze',
-            category: 'Air Freshener',
-            code: '123456',
-            cost: '12.00',
-            retailPrice: '15.50',
-            threshold: 10,
-            quantity: 25,
-            batches: [
-              {
-                batchId: 'B003',
-                quantity: 15,
-                expiryDate: '2026-06-30',
-                receivedDate: '2025-03-10'
-              },
-              {
-                batchId: 'B004',
-                quantity: 10,
-                expiryDate: '2026-08-15',
-                receivedDate: '2025-04-05'
-              }
-            ]
-          },
-          {
-            id: 3,
-            name: 'White Bun',
-            category: 'Bread',
-            code: '123456',
-            cost: '3.00',
-            retailPrice: '3.5',
-            threshold: 15,
-            quantity: 20,
-            batches: [
-              {
-                batchId: 'B005',
-                quantity: 20,
-                expiryDate: '2025-04-30',
-                receivedDate: '2025-04-15'
-              }
-            ]
-          }
-        ]
+        products: []
       };
+    },
+    mounted() {
+        this.fetchProducts();
     },
     computed: {
       filteredProducts() {
@@ -401,11 +327,11 @@
         const date = new Date(dateString);
         return date.toLocaleDateString();
       },
-      toggleExpand(productId) {
-        if (this.expandedProductId === productId) {
+      toggleExpand(product_id) {
+        if (this.expandedProductId === product_id) {
           this.expandedProductId = null;
         } else {
-          this.expandedProductId = productId;
+          this.expandedProductId = product_id;
         }
       },
       resetForm() {
@@ -414,8 +340,8 @@
           category: '',
           code: '',
           cost: '',
-          retailPrice: '',
-          threshold: '',
+          retail_price: '',
+          stock_threshold: '',
           quantity: ''
         };
         this.currentProductId = null;
@@ -423,10 +349,10 @@
       },
       resetBatchForm() {
         this.batchFormData = {
-          batchId: '',
+          batch_id: '',
           quantity: '',
-          expiryDate: '',
-          receivedDate: ''
+          expiry_date: '',
+          received_date: ''
         };
         this.currentBatchId = null;
         this.isEditingBatch = false;
@@ -445,30 +371,30 @@
         this.isModalOpen = false;
         setTimeout(this.resetForm, 300);
       },
-      openAddBatchModal(productId) {
+      openAddBatchModal(product_id) {
         this.resetBatchForm();
-        this.currentProductId = productId;
+        this.currentProductId = product_id;
         
         // Generate new batch ID
-        const product = this.products.find(p => p.id === productId);
+        const product = this.products.find(p => p.id === product_id);
         const batchCount = product.batches ? product.batches.length : 0;
-        this.batchFormData.batchId = `B${String(productId).padStart(2, '0')}${String(batchCount + 1).padStart(2, '0')}`;
+        this.batchFormData.batch_id = `B${String(product_id).padStart(2, '0')}${String(batchCount + 1).padStart(2, '0')}`;
         
         // Set default dates
         const today = new Date();
-        this.batchFormData.receivedDate = today.toISOString().split('T')[0];
+        this.batchFormData.received_date = today.toISOString().split('T')[0];
         
         // Default expiry date (6 months from today)
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 6);
-        this.batchFormData.expiryDate = expiryDate.toISOString().split('T')[0];
+        const expiry_date = new Date();
+        expiry_date.setMonth(expiry_date.getMonth() + 6);
+        this.batchFormData.expiry_date = expiry_date.toISOString().split('T')[0];
         
         this.isBatchModalOpen = true;
       },
-      openBatchEditModal(productId, batch) {
+      openBatchEditModal(product_id, batch) {
         this.isEditingBatch = true;
-        this.currentProductId = productId;
-        this.currentBatchId = batch.batchId;
+        this.currentProductId = product_id;
+        this.currentBatchId = batch.batch_id;
         this.batchFormData = { ...batch };
         this.isBatchModalOpen = true;
       },
@@ -476,76 +402,63 @@
         this.isBatchModalOpen = false;
         setTimeout(this.resetBatchForm, 300);
       },
-      submitForm() {
-        if (this.isEditing) {
-          const index = this.products.findIndex(p => p.id === this.currentProductId);
-          if (index !== -1) {
-            // Preserve batches from the existing product
-            const batches = this.products[index].batches || [];
-            this.products[index] = { 
-              ...this.formData, 
-              id: this.currentProductId,
-              batches
+      async fetchProducts() {
+        try {
+            const response = await api.get('/api/products');
+            this.products = response.data;
+        } catch (error) {
+            console.error('Failed to fetch products:', error);
+        }
+      },
+      async submitForm() {
+        try {
+            if (this.isEditing) {
+                // Update product
+                await api.put(`/api/products/${this.currentProductId}`, this.formData);
+            } else {
+                // Create new product
+                await api.post('/api/products', this.formData);
+            }
+            this.closeModal();
+            this.fetchProducts(); // Refresh product list
+        } catch (error) {
+            console.error('Failed to save product:', error);
+        }
+      },
+      async submitBatchForm() {
+        try {
+            const payload = {
+                product_id: this.currentProductId,
+                quantity: Number(this.batchFormData.quantity), 
+                expiry_date: this.batchFormData.expiry_date,
+                received_date: this.batchFormData.received_date
             };
-            
-            // Recalculate total quantity based on batches
-            this.updateProductQuantity(this.currentProductId);
-          }
-        } else {
-          const newId = Math.max(...this.products.map(p => p.id), 0) + 1;
-          this.products.push({ 
-            ...this.formData, 
-            id: newId,
-            batches: [],
-            quantity: 0
-          });
-        }
-        this.closeModal();
-      },
-      submitBatchForm() {
-        const productIndex = this.products.findIndex(p => p.id === this.currentProductId);
-        
-        if (productIndex === -1) return;
-        
-        const product = this.products[productIndex];
-        
-        if (!product.batches) {
-          product.batches = [];
-        }
-        
-        if (this.isEditingBatch) {
-          const batchIndex = product.batches.findIndex(b => b.batchId === this.currentBatchId);
-          
-          if (batchIndex !== -1) {
-            product.batches[batchIndex] = { ...this.batchFormData };
-          }
-        } else {
-          product.batches.push({ ...this.batchFormData });
-        }
-        
-        // Update the total quantity
-        this.updateProductQuantity(this.currentProductId);
-        
-        this.closeBatchModal();
-      },
-      deleteBatch(productId, batchId) {
-        const productIndex = this.products.findIndex(p => p.id === productId);
-        
-        if (productIndex === -1) return;
-        
-        const product = this.products[productIndex];
-        
-        if (!product.batches) return;
-        
-        const batchIndex = product.batches.findIndex(b => b.batchId === batchId);
-        
-        if (batchIndex !== -1) {
-          product.batches.splice(batchIndex, 1);
-          this.updateProductQuantity(productId);
+
+            if (this.isEditingBatch) {
+                await api.put(`/api/products/${this.currentProductId}/batches/${this.currentBatchId}`, 
+                    payload
+                );
+            } else {
+                await api.post(`/api/products/${this.currentProductId}/batches`, 
+                    payload
+                );
+            }
+            this.closeBatchModal();
+            this.fetchProducts();
+        } catch (error) {
+            console.error('Failed to save batch:', error);
         }
       },
-      updateProductQuantity(productId) {
-        const productIndex = this.products.findIndex(p => p.id === productId);
+      async deleteBatch(product_id, batch_id) {
+        try {
+            await api.delete(`/api/products/${product_id}/batches/${batch_id}`);
+            this.fetchProducts();
+        } catch (error) {
+            console.error('Failed to delete batch:', error);
+        }
+      },
+      updateProductQuantity(product_id) {
+        const productIndex = this.products.findIndex(p => p.id === product_id);
         
         if (productIndex === -1) return;
         
@@ -561,7 +474,7 @@
           return sum + (parseInt(batch.quantity) || 0);
         }, 0);
       }
-    }
+    },
   };
   </script>
   
@@ -634,6 +547,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23718096'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
+  }
+
+  .expand-cell .chevron-down {
+    margin-left: 0px;
   }
   
   .chevron-up {

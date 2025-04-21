@@ -30,13 +30,18 @@ class ProductBatchBase(BaseModel):
     product_id: int
     quantity: int
     expiry_date: date
+    received_date: date
 
 class ProductBatchCreate(ProductBatchBase):
     pass
 
+class ProductBatchUpdate(BaseModel):
+    quantity: Optional[int] = None
+    expiry_date: Optional[date] = None
+    received_date: Optional[date] = None
+
 class ProductBatchRead(ProductBatchBase):
     batch_id: int
-    received_date: datetime
 
     class Config:
         orm_mode = True
@@ -55,12 +60,17 @@ class ProductCreate(ProductBase):
     pass
 
 class ProductUpdate(ProductBase):
-    pass
+    name: Optional[str] = None
+    category: Optional[str] = None
+    code: Optional[str] = None
+    cost: Optional[float] = None
+    retail_price: Optional[float] = None
+    stock_threshold: Optional[int] = None
 
 class ProductRead(ProductBase):
     id: int
-    batches: List[ProductBatchRead] = []
-    inventory: List[InventoryRead] = []
+    batches: Optional[List[ProductBatchRead]] = []
+    inventory: Optional[List[InventoryRead]] = []
 
     class Config:
         orm_mode = True

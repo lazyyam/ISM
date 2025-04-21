@@ -52,7 +52,7 @@
       async submitEmail() {
         this.isLoading = true;
         try {
-          await api.post("/forgot-password", {
+          await api.post("/api/forgot-password", {
             email: this.email.trim().toLowerCase(),
           });
   

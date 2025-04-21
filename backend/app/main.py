@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
 from controllers.auth_controller import auth_router
+from controllers.product_controller import product_router
 
 app = FastAPI()
 
@@ -17,7 +18,9 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(auth_router, tags=["Auth"])
+app.include_router(auth_router, prefix="/api", tags=["Auth"])
+app.include_router(product_router, prefix="/api/products", tags=["Products"])
+
 
 @app.get("/test-db")
 def test_db(db: Session = Depends(get_db)):

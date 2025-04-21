@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timezone, timedelta
 import jwt
 from database import get_db
-from models import User  
+from models.user_models import User  
 from schemas.user_schemas import UserCreate, UserLogin, ForgotPasswordRequest, ResetPasswordRequest
 from fastapi.responses import JSONResponse
 from utils.email import send_reset_email

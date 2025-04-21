@@ -73,7 +73,7 @@ export default {
       this.isLoading = true;
 
       try {
-        await api.post("/reset-password", {
+        await api.post("/api/reset-password", {
           token: token,
           new_password: this.password,
         });

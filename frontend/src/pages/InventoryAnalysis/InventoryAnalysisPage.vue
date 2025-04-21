@@ -97,6 +97,8 @@
     data() {
       return {
         chart: null,
+        isMounted: false,
+        chartInitPromise: null,
         topSellingProducts: [
           {
             name: 'product name',
@@ -173,39 +175,112 @@
       };
     },
     mounted() {
-      this.initChart();
+      this.isMounted = true;
+      this.chartInitPromise = this.$nextTick().then(() => {
+        if (this.isMounted) {
+          this.initChart();
+        }
+      });
+    },
+    beforeUnmount() {
+      this.isMounted = false;
+      this.destroyChart();
     },
     methods: {
       initChart() {
-        const ctx = this.$refs.chartCanvas.getContext('2d');
-        this.chart = new Chart(ctx, {
-          type: 'bar',
-          data: this.chartData,
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'top',
+        if (!this.$refs.chartCanvas || this.chart || !this.isMounted) return;
+  
+        try {
+          const ctx = this.$refs.chartCanvas.getContext('2d');
+          this.chart = new Chart(ctx, {
+            type: 'bar',
+            data: this.chartData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              // Disable all animations
+              animation: {
+                duration: 0 // general animation time
               },
-              title: {
-                display: false
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true
+              hover: {
+                animationDuration: 0 // duration of animations when hovering an item
+              },
+              responsiveAnimationDuration: 0, // animation duration after a resize
+              plugins: {
+                legend: {
+                  position: 'top',
+                },
+                title: {
+                  display: false
+                },
+                // Disable tooltip animations
+                tooltip: {
+                  animation: {
+                    duration: 0
+                  }
+                }
+              },
+              // Disable animations for all elements (bars, lines, etc)
+              elements: {
+                line: {
+                  tension: 0 // disables bezier curves
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  // Disable animations for scales
+                  ticks: {
+                    animation: {
+                      duration: 0
+                    }
+                  }
+                },
+                x: {
+                  // Disable animations for scales
+                  ticks: {
+                    animation: {
+                      duration: 0
+                    }
+                  }
+                }
+              },
+              // Additional global animation settings
+              transitions: {
+                active: {
+                  animation: {
+                    duration: 0
+                  }
+                },
+                resize: {
+                  animation: {
+                    duration: 0
+                  }
+                }
               }
             }
+          });
+        } catch (error) {
+          if (this.isMounted) {
+            console.error('Chart initialization error:', error);
           }
-        });
+        }
+      },
+      destroyChart() {
+        if (this.chart) {
+          try {
+            this.chart.destroy();
+          } catch (error) {
+            console.error('Chart destruction error:', error);
+          } finally {
+            this.chart = null;
+          }
+        }
+        
+        // Cancel any pending chart initialization
+        this.chartInitPromise = null;
       }
     },
-    beforeUnmount() {
-      if (this.chart) {
-        this.chart.destroy();
-      }
-    }
   };
   </script>
   

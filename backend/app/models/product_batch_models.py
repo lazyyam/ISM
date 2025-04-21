@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, Date, TIMESTAMP, ForeignKey, func
+from sqlalchemy import Column, Integer, Date, ForeignKey
+from sqlalchemy.orm import relationship 
 from database import Base
 
 class ProductBatch(Base):
@@ -8,4 +9,6 @@ class ProductBatch(Base):
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False)
     expiry_date = Column(Date, nullable=False)
-    received_date = Column(TIMESTAMP, server_default=func.now())
+    received_date = Column(Date, nullable=False)
+
+    product = relationship("Product", back_populates="batches")

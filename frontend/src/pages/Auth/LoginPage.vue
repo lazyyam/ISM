@@ -55,7 +55,7 @@
     methods: {
       async handleLogin() {
       try {
-        const response = await api.post("/login", {
+        const response = await api.post("/api/login", {
           email: this.email,
           password: this.password,
         });

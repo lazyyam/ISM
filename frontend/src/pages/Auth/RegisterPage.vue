@@ -73,7 +73,7 @@ export default {
   methods: {
     async handleRegister() {
       try {
-        const response = await api.post("/register", {
+        const response = await api.post("/api/register", {
           email: this.email,
           password: this.password,
           full_name: this.full_name,
