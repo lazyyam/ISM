@@ -6,7 +6,6 @@ from models.inventory_models import Inventory
 from models.product_batch_models import ProductBatch  
 from schemas.product_schemas import ProductCreate, ProductUpdate, ProductRead, ProductBatchCreate, ProductBatchUpdate, ProductBatchRead
 from typing import List
-from datetime import datetime, timezone
 
 product_router = APIRouter()
 
@@ -26,7 +25,10 @@ def add_product(product_data: ProductCreate, db: Session = Depends(get_db)):
 # Get All Products and batches
 @product_router.get("/", response_model=List[ProductRead])
 def get_products(db: Session = Depends(get_db)):
-    products = db.query(Product).options(joinedload(Product.batches)).all()
+    products = db.query(Product).options(
+        joinedload(Product.batches),
+        joinedload(Product.inventory).joinedload(Inventory.batch)
+        ).all()
     return products
 
 # Edit/Update Product

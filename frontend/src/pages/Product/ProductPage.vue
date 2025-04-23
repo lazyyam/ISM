@@ -24,7 +24,6 @@
         <table>
           <thead>
             <tr>
-              <th class="action-cell">Action</th>
               <th>ID</th>
               <th>Name</th>
               <th>Category</th>
@@ -34,21 +33,13 @@
               <th>Threshold</th>
               <th>Quantity</th>
               <th class="expand-cell"></th>
+              <th class="action-cell">Action</th>
             </tr>
           </thead>
           <tbody>
             <template v-for="product in filteredProducts" :key="product.id">
               <!-- Main Product Row -->
               <tr :class="{'expanded': expandedProductId === product.id}">
-                <td class="action-cell">
-                  <button 
-                    class="edit-btn" 
-                    @click="openEditModal(product)"
-                    title="Edit product"
-                  >
-                    <i class="edit-icon"></i>
-                  </button>
-                </td>
                 <td>{{ product.id }}</td>
                 <td>{{ product.name }}</td>
                 <td>{{ product.category }}</td>
@@ -66,6 +57,24 @@
                     <i :class="['chevron-icon', expandedProductId === product.id ? 'chevron-up' : 'chevron-down']"></i>
                   </button>
                 </td>
+                <td class="action-cell">
+                  <div class="action-buttons">
+                    <button 
+                      class="edit-btn" 
+                      @click="openEditModal(product)"
+                      title="Edit product"
+                    >
+                      <i class="edit-icon"></i>
+                    </button>
+                    <button 
+                      class="delete-btn" 
+                      @click="deleteProduct(product.id)"
+                      title="Delete product"
+                    >
+                      <i class="delete-icon"></i>
+                    </button>
+                  </div>
+                </td>
               </tr>
               
               <!-- Expanded Batch Details -->
@@ -77,7 +86,7 @@
                       <div class="batch-column batch-quantity">Quantity</div>
                       <div class="batch-column batch-expiry">Expiry Date</div>
                       <div class="batch-column batch-received">Received Date</div>
-                      <div class="batch-column batch-actions">Actions</div>
+                      <div class="batch-column batch-actions">Action</div>
                     </div>
                     
                     <div class="batch-content">
@@ -92,6 +101,10 @@
                           <div class="batch-column batch-expiry">{{ formatDate(batch.expiry_date) }}</div>
                           <div class="batch-column batch-received">{{ formatDate(batch.received_date) }}</div>
                           <div class="batch-column batch-actions">
+                            <button class="batch-sell-btn" @click="openSellBatchModal(product.id, batch)">
+                              <i class="sell-icon"></i>
+                              Sell
+                            </button>
                             <button class="batch-edit-btn" @click="openBatchEditModal(product.id, batch)">
                               <i class="edit-icon"></i>
                             </button>
@@ -256,6 +269,54 @@
           </button>
         </template>
       </BaseModal>
+      
+      <!-- Sell Batch Modal -->
+      <BaseModal
+        :isOpen="isSellModalOpen"
+        title="Sell Product"
+        @close="closeSellModal"
+      >
+        <div class="product-form">      
+          <div class="form-group">
+            <label for="sellQuantity">Quantity to Sell:</label>
+            <input 
+              id="sellQuantity" 
+              type="number" 
+              v-model="sellFormData.quantity" 
+              class="form-control"
+              :max="sellFormData.maxQuantity"
+            />
+            <small class="form-text">Available: {{ sellFormData.maxQuantity }}</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="sellPrice">Selling Price:</label>
+            <input 
+              id="sellPrice" 
+              type="number" 
+              step="0.01" 
+              v-model="sellFormData.price" 
+              class="form-control"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="sellDate">Sell Date:</label>
+            <input 
+              id="sellDate" 
+              type="date" 
+              v-model="sellFormData.sell_date" 
+              class="form-control"
+            />
+          </div>
+        </div>
+        
+        <template v-slot:footer>
+          <button class="submit-btn" @click="submitSellForm">
+            Complete Sale
+          </button>
+        </template>
+      </BaseModal>
     </div>
   </template>
   
@@ -273,6 +334,7 @@
         searchQuery: '',
         isModalOpen: false,
         isBatchModalOpen: false,
+        isSellModalOpen: false,
         isEditing: false,
         isEditingBatch: false,
         expandedProductId: null,
@@ -293,6 +355,14 @@
           expiry_date: '',
           received_date: ''
         },
+        sellFormData: {
+          quantity: 1,
+          maxQuantity: 0,
+          price: '',
+          sell_date: '',
+          product_id: null,
+          batch_id: null
+        },
         products: []
       };
     },
@@ -307,9 +377,7 @@
         
         const query = this.searchQuery.toLowerCase();
         return this.products.filter(product => {
-          return product.id.toString().includes(query) ||
-                 product.name.toLowerCase().includes(query) ||
-                 product.category.toLowerCase().includes(query) ||
+          return product.name.toLowerCase().includes(query) ||
                  product.code.includes(query);
         });
       },
@@ -357,6 +425,16 @@
         this.currentBatchId = null;
         this.isEditingBatch = false;
       },
+      resetSellForm() {
+        this.sellFormData = {
+          quantity: 1,
+          maxQuantity: 0,
+          price: '',
+          sell_date: '',
+          product_id: null,
+          batch_id: null
+        };
+      },
       openAddModal() {
         this.resetForm();
         this.isModalOpen = true;
@@ -402,10 +480,36 @@
         this.isBatchModalOpen = false;
         setTimeout(this.resetBatchForm, 300);
       },
+      openSellBatchModal(product_id, batch) {
+        this.resetSellForm();
+        this.sellFormData.product_id = product_id;
+        this.sellFormData.batch_id = batch.batch_id;
+        this.sellFormData.maxQuantity = batch.quantity;
+        
+        // Get the product info for default price
+        const product = this.products.find(p => p.id === product_id);
+        if (product) {
+          this.sellFormData.price = product.retail_price;
+        }
+        
+        // Set default sell date to today
+        const today = new Date();
+        this.sellFormData.sell_date = today.toISOString().split('T')[0];
+        
+        this.isSellModalOpen = true;
+      },
+      closeSellModal() {
+        this.isSellModalOpen = false;
+        setTimeout(this.resetSellForm, 300);
+      },
       async fetchProducts() {
         try {
             const response = await api.get('/api/products');
             this.products = response.data;
+
+            this.products.forEach(product => {
+                this.updateProductQuantity(product.id);
+            });
         } catch (error) {
             console.error('Failed to fetch products:', error);
         }
@@ -433,7 +537,7 @@
                 expiry_date: this.batchFormData.expiry_date,
                 received_date: this.batchFormData.received_date
             };
-
+  
             if (this.isEditingBatch) {
                 await api.put(`/api/products/${this.currentProductId}/batches/${this.currentBatchId}`, 
                     payload
@@ -449,12 +553,41 @@
             console.error('Failed to save batch:', error);
         }
       },
+      async submitSellForm() {
+        try {
+          const payload = {
+            quantity: Number(this.sellFormData.quantity),
+            price: Number(this.sellFormData.price),
+            sell_date: this.sellFormData.sell_date
+          };
+          
+          await api.post(
+            `/api/products/${this.sellFormData.product_id}/batches/${this.sellFormData.batch_id}/sell`, 
+            payload
+          );
+          
+          this.closeSellModal();
+          this.fetchProducts();
+        } catch (error) {
+          console.error('Failed to process sale:', error);
+        }
+      },
       async deleteBatch(product_id, batch_id) {
         try {
             await api.delete(`/api/products/${product_id}/batches/${batch_id}`);
             this.fetchProducts();
         } catch (error) {
             console.error('Failed to delete batch:', error);
+        }
+      },
+      async deleteProduct(product_id) {
+        if (confirm('Are you sure you want to delete this product?')) {
+          try {
+            await api.delete(`/api/products/${product_id}`);
+            this.fetchProducts();
+          } catch (error) {
+            console.error('Failed to delete product:', error);
+          }
         }
       },
       updateProductQuantity(product_id) {
@@ -465,14 +598,17 @@
         const product = this.products[productIndex];
         
         if (!product.batches) {
-          product.quantity = 0;
+          this.products[productIndex].quantity = 0;
           return;
         }
         
         // Sum up quantities from all batches
-        product.quantity = product.batches.reduce((sum, batch) => {
-          return sum + (parseInt(batch.quantity) || 0);
+        const totalQuantity = product.batches.reduce((sum, batch) => {
+            return sum + (Number(batch.quantity) || 0);
         }, 0);
+
+        // Update the product's quantity
+        this.products[productIndex].quantity = totalQuantity;
       }
     },
   };
@@ -548,7 +684,7 @@
     background-size: contain;
     background-repeat: no-repeat;
   }
-
+  
   .expand-cell .chevron-down {
     margin-left: 0px;
   }
@@ -593,7 +729,7 @@
   }
   
   .action-cell {
-    width: 60px;
+    width: 100px;
     text-align: center;
   }
   
@@ -602,7 +738,13 @@
     text-align: center;
   }
   
-  .edit-btn, .expand-btn {
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .edit-btn, .expand-btn, .delete-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -619,6 +761,10 @@
     background-color: #edf2f7;
   }
   
+  .delete-btn:hover {
+    background-color: #fed7d7;
+  }
+  
   .edit-icon {
     width: 16px;
     height: 16px;
@@ -631,6 +777,15 @@
     width: 16px;
     height: 16px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23e53e3e'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' /%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+  }
+  
+  .sell-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a5568'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' /%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
   }
@@ -717,112 +872,131 @@
   tr.expanded {
     background-color: #ebf4ff;
   }
-  
+
   tr.batch-header td {
-    padding: 0;
-    border-bottom: none;
-  }
-  
-  .batch-container {
-    padding: 0 16px 16px 16px;
-    background-color: #f7fafc;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  
-  .batch-header-row {
-    display: flex;
-    background-color: #edf2f7;
-    border-radius: 4px 4px 0 0;
-    padding: 10px 16px;
-    font-weight: 500;
-    font-size: 13px;
-    color: #4a5568;
-  }
-  
-  .batch-row {
-    display: flex;
-    padding: 12px 16px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  
-  .batch-row:last-child {
-    border-bottom: none;
-  }
-  
-  .batch-column {
-    flex: 1;
-  }
-  
-  .batch-id {
-    flex: 0.5;
-  }
-  
-  .batch-quantity {
-    flex: 0.5;
-  }
-  
-  .batch-expiry {
-    flex: 1;
-  }
-  
-  .batch-received {
-    flex: 1;
-  }
-  
-  .batch-actions {
-    flex: 0.5;
-    display: flex;
-    justify-content: flex-start;
-    gap: 8px;
-  }
-  
-  .batch-edit-btn, .batch-delete-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background-color: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  
-  .batch-edit-btn:hover {
-    background-color: #edf2f7;
-  }
-  
-  .batch-delete-btn:hover {
-    background-color: #fed7d7;
-  }
-  
-  .add-batch-container {
-    margin-top: 16px;
-    display: flex;
-    justify-content: flex-end;
-  }
-  
-  .add-batch-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
-    background-color: #4299e1;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  
-  .add-batch-btn:hover {
-    background-color: #3182ce;
-  }
-  
-  .no-batches {
-    padding: 16px;
-    text-align: center;
-    color: #718096;
-    font-style: italic;
-  }
-  </style>
+  padding: 0;
+  border-bottom: none;
+}
+
+.batch-container {
+  padding: 0 16px 16px 16px;
+  background-color: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.batch-header-row {
+  display: flex;
+  background-color: #edf2f7;
+  border-radius: 4px 4px 0 0;
+  padding: 10px 16px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.batch-row {
+  display: flex;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.batch-row:last-child {
+  border-bottom: none;
+}
+
+.batch-column {
+  flex: 1;
+}
+
+.batch-id {
+  flex: 0.5;
+}
+
+.batch-quantity {
+  flex: 0.5;
+}
+
+.batch-expiry {
+  flex: 1;
+}
+
+.batch-received {
+  flex: 1;
+}
+
+.batch-actions {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.batch-edit-btn, .batch-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.batch-sell-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  height: 28px;
+  background-color: #38a169;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.batch-sell-btn:hover {
+  background-color: #2f855a;
+}
+
+.batch-edit-btn:hover {
+  background-color: #edf2f7;
+}
+
+.batch-delete-btn:hover {
+  background-color: #fed7d7;
+}
+
+.add-batch-container {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-batch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.add-batch-btn:hover {
+  background-color: #3182ce;
+}
+
+.no-batches {
+  padding: 16px;
+  text-align: center;
+  color: #718096;
+  font-style: italic;
+}
+</style>

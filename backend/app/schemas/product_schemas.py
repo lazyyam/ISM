@@ -3,27 +3,6 @@ from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
 
-#INVENTORY
-class TransactionTypeEnum(str, Enum):
-    sale = "sale"
-    restock = "restock"
-
-class InventoryBase(BaseModel):
-    product_id: int
-    change_amount: int
-    transaction_type: TransactionTypeEnum
-    batch_id: Optional[int] = None
-
-class InventoryCreate(InventoryBase):
-    pass
-
-class InventoryRead(InventoryBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        orm_mode = True
-
 
 #PRODUCT_BATCH
 class ProductBatchBase(BaseModel):
@@ -42,6 +21,29 @@ class ProductBatchUpdate(BaseModel):
 
 class ProductBatchRead(ProductBatchBase):
     batch_id: int
+
+    class Config:
+        orm_mode = True
+
+
+#INVENTORY
+class TransactionTypeEnum(str, Enum):
+    sale = "sale"
+    restock = "restock"
+
+class InventoryBase(BaseModel):
+    product_id: int
+    change_amount: int
+    transaction_type: TransactionTypeEnum
+    batch_id: Optional[int] = None
+
+class InventoryCreate(InventoryBase):
+    pass
+
+class InventoryRead(InventoryBase):
+    id: int
+    created_at: datetime
+    batch: Optional[ProductBatchRead] = None
 
     class Config:
         orm_mode = True

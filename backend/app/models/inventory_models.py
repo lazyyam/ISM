@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey, Enum, TIMESTAMP, func
+from sqlalchemy.orm import relationship 
 from database import Base
 import enum
 
@@ -15,3 +16,6 @@ class Inventory(Base):
     transaction_type = Column(Enum(TransactionTypeEnum), nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
     batch_id = Column(Integer, ForeignKey("product_batches.batch_id"))
+
+    product = relationship("Product", back_populates="inventory")
+    batch = relationship("ProductBatch", back_populates="inventory", lazy="joined")

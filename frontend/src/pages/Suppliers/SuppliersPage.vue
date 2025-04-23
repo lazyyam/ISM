@@ -30,75 +30,36 @@
               <th>Address</th>
               <th>Phone no.</th>
               <th>Email</th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="supplier in filteredSuppliers" :key="supplier.id">
               <td>{{ supplier.id }}</td>
-              <td>{{ supplier.name }}</td>
-              <td>{{ supplier.company }}</td>
-              <td>{{ supplier.address }}</td>
-              <td>{{ supplier.phone }}</td>
+              <td>{{ supplier.full_name }}</td>
+              <td>{{ supplier.company_name }}</td>
+              <td>{{ supplier.company_address }}</td>
+              <td>{{ supplier.phone_number }}</td>
               <td>{{ supplier.email }}</td>
-              <td>{{ supplier.status }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      
-      <button class="add-supplier-btn" @click="addSupplier">
-        <i class="plus-icon"></i>
-        Add Supplier
-      </button>
     </div>
   </template>
   
   <script>
+  import api from "@/services/api";
+
   export default {
     name: 'SuppliersPage',
     data() {
       return {
         searchQuery: '',
-        suppliers: [
-          {
-            id: 1,
-            name: 'Chong',
-            company: 'Chong\'s Trading',
-            address: 'Kemaman, Terengganu',
-            phone: '01234567890',
-            email: 'chong@gmail.com',
-            status: 'Active'
-          },
-          {
-            id: 2,
-            name: 'Ali',
-            company: 'Ali Enterprise Sdn. Bhd.',
-            address: 'Pekan, Kuantan',
-            phone: '01234567890',
-            email: 'ali@gmail.com',
-            status: 'Active'
-          },
-          {
-            id: 3,
-            name: 'Siti',
-            company: 'ST Grocery',
-            address: 'Alor Setar, Kedah',
-            phone: '01234567890',
-            email: 'siti@gmail.com',
-            status: 'Active'
-          },
-          {
-            id: 4,
-            name: 'Kumar',
-            company: 'KM Wholesale',
-            address: 'Johor Bahru, Johor',
-            phone: '01234567890',
-            email: 'kumar@gmail.com',
-            status: 'Active'
-          }
-        ]
+        suppliers: []
       };
+    },
+    mounted() {
+        this.fetchSuppliers();
     },
     computed: {
       filteredSuppliers() {
@@ -108,22 +69,22 @@
         
         const query = this.searchQuery.toLowerCase();
         return this.suppliers.filter(supplier => {
-          return supplier.id.toString().includes(query) ||
-                 supplier.name.toLowerCase().includes(query) ||
-                 supplier.company.toLowerCase().includes(query) ||
-                 supplier.address.toLowerCase().includes(query) ||
-                 supplier.phone.includes(query) ||
-                 supplier.email.toLowerCase().includes(query) ||
-                 supplier.status.toLowerCase().includes(query);
+          return supplier.full_name.toLowerCase().includes(query) ||
+                 supplier.company_name.toLowerCase().includes(query) ||
+                 supplier.phone_number.includes(query);
         });
       }
     },
     methods: {
-      addSupplier() {
-        console.log('Add supplier clicked');
-        // Implement your add supplier logic here
-        // This could open a modal or navigate to a supplier form
-      }
+      async fetchSuppliers() {
+        try {
+            const response = await api.get('/api/suppliers');
+            this.suppliers = response.data;
+        } catch (error) {
+            console.error("Failed to fetch suppliers:", error);
+        }
+      },
+
     }
   };
   </script>

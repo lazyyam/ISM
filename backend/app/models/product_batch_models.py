@@ -12,3 +12,4 @@ class ProductBatch(Base):
     received_date = Column(Date, nullable=False)
 
     product = relationship("Product", back_populates="batches")
+    inventory = relationship("Inventory", back_populates="batch", cascade="all, delete-orphan")
