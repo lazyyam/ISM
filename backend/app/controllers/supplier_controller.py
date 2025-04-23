@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models.user_models import User  
-from schemas.user_schemas import UserResponse
+from schemas.user_schemas import UserResponse, UserUpdate
 
 supplier_router = APIRouter()
 

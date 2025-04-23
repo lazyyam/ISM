@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timezone, timedelta
 import jwt
 from database import get_db
 from models.user_models import User  
-from schemas.user_schemas import UserCreate, UserLogin, ForgotPasswordRequest, ResetPasswordRequest
+from schemas.user_schemas import UserCreate, UserLogin, ForgotPasswordRequest, ResetPasswordRequest, UserUpdate, UserResponse
 from fastapi.responses import JSONResponse
 from utils.email import send_reset_email
 
@@ -120,3 +121,57 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     db.commit()
 
     return {"message": "Password reset successful"}
+
+
+@auth_router.get("/user-info", response_model= UserResponse)
+def get_user_info(
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
+):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    try:
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("id"))
+    except (jwt.ExpiredSignatureError, jwt.PyJWTError, IndexError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+
+@auth_router.put("/manage-account", response_model=UserResponse)
+def update_account_info(
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
+):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    try:
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("id"))
+    except (jwt.ExpiredSignatureError, jwt.PyJWTError, IndexError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_fields = ["email", "full_name", "phone_number", "company_name", "company_address"]
+    for field in update_fields:
+        value = getattr(user_update, field)
+        if value is not None:
+            setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+    return user

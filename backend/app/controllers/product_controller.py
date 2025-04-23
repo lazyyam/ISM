@@ -9,6 +9,17 @@ from typing import List
 
 product_router = APIRouter()
 
+
+# Get All Products and batches
+@product_router.get("/", response_model=List[ProductRead])
+def get_products(db: Session = Depends(get_db)):
+    products = db.query(Product).options(
+        joinedload(Product.batches),
+        joinedload(Product.inventory).joinedload(Inventory.batch)
+        ).all()
+    return products
+
+
 # Add Product
 @product_router.post("/", response_model=ProductRead)
 def add_product(product_data: ProductCreate, db: Session = Depends(get_db)):
@@ -22,14 +33,6 @@ def add_product(product_data: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(new_product)
     return new_product
 
-# Get All Products and batches
-@product_router.get("/", response_model=List[ProductRead])
-def get_products(db: Session = Depends(get_db)):
-    products = db.query(Product).options(
-        joinedload(Product.batches),
-        joinedload(Product.inventory).joinedload(Inventory.batch)
-        ).all()
-    return products
 
 # Edit/Update Product
 @product_router.put("/{product_id}", response_model=ProductRead)
@@ -44,6 +47,27 @@ def update_product(product_id: int, updated_data: ProductUpdate, db: Session = D
     db.commit()
     db.refresh(product)
     return product
+
+
+# Delete Product
+@product_router.delete("/{product_id}")
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    inventories = db.query(Inventory).filter(Inventory.product_id == product_id).all()
+    for inventory in inventories:
+        db.delete(inventory)
+
+    batches = db.query(ProductBatch).filter(ProductBatch.product_id == product_id).all()
+    for batch in batches:
+        db.delete(batch)
+
+    db.delete(product)
+    db.commit()
+    return {"detail": "Product and related data deleted successfully"}
+
 
 # Add Product Batch
 @product_router.post("/{product_id}/batches", response_model=ProductBatchRead)
@@ -63,6 +87,7 @@ def add_product_batch(product_id: int, batch_data: ProductBatchCreate, db: Sessi
     db.refresh(new_batch)
     return new_batch
 
+
 # Update Product Batch
 @product_router.put("/{product_id}/batches/{batch_id}", response_model=ProductBatchRead)
 def update_product_batch(product_id: int, batch_id: int, updated_data: ProductBatchUpdate, db: Session = Depends(get_db)):
@@ -81,6 +106,7 @@ def update_product_batch(product_id: int, batch_id: int, updated_data: ProductBa
     db.commit()
     db.refresh(batch)
     return batch
+
 
 # Delete Product Batch
 @product_router.delete("/{product_id}/batches/{batch_id}")
