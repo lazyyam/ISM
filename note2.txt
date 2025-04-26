@@ -28,4 +28,31 @@ CREATE TABLE product_batches (
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
-can you modify this ProductPage.vue, the table, add another column called threshold between retail price and quantity, and make every row expandable, and when clicked to expand to many rows under the main row, it will have column of batch id, quantity (for the batch), expiry date, received date
+
+supplier_products
+------------------------
+id (PK)
+supplier_id (FK to users/suppliers)
+name
+category
+code
+cost
+quantity_available
+created_at
+
+purchase_orders
+------------------------
+id (PK)
+supplier_id (FK to users)
+order_date
+status (pending, approved, shipped, received, cancelled)
+total_cost
+
+purchase_order_items
+------------------------
+id (PK)
+purchase_order_id (FK)
+supplier_product_id (FK)
+quantity
+unit_cost
+subtotal

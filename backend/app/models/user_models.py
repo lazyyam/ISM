@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from database import Base
 
@@ -14,3 +15,6 @@ class User(Base):
     company_name = Column(String(100), nullable=True)
     company_address = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+    supplier_products = relationship("SupplierProduct", back_populates="supplier", cascade="all, delete-orphan")
+    purchase_orders = relationship("PurchaseOrder", back_populates="supplier", cascade="all, delete-orphan")

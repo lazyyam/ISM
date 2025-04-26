@@ -66,6 +66,7 @@
 
         const token = response.data.access_token;
         localStorage.setItem("token", token);
+        localStorage.setItem("refresh_token", response.data.refresh_token || "");
 
         if (this.rememberMe) {
           localStorage.setItem("rememberEmail", this.email);

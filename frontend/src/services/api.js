@@ -1,4 +1,5 @@
 import axios from "axios";
+import router from "@/router"; // Make sure you have your router imported
 
 const API_URL = "http://127.0.0.1:8000"; 
 
@@ -9,12 +10,58 @@ const api = axios.create({
   },
 });
 
+// Request interceptor - add token to requests
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
+
+// Response interceptor - handle token expiration
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (
+      error.response && 
+      error.response.status === 401 && 
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem("refresh_token");
+        
+        if (!refreshToken) {
+          throw new Error("No refresh token");
+        }
+        
+        const response = await axios.post(`${API_URL}/api/refresh-token`, {
+          refresh_token: refreshToken
+        });
+        
+        const newToken = response.data.access_token;
+        localStorage.setItem("token", newToken);
+        
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return axios(originalRequest);
+      } catch (refreshError) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("refresh_token");
+        
+        alert("Your session has expired. Please log in again.");
+        router.push("/login");
+        
+        return Promise.reject(refreshError);
+      }
+    }
+        return Promise.reject(error);
+  }
+);
 
 export default api;
