@@ -24,7 +24,7 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>No.</th>
             <th>Name</th>
             <th>Category</th>
             <th>Code</th>
@@ -34,8 +34,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in filteredProducts" :key="product.id">
-            <td>{{ product.id }}</td>
+          <tr v-for="(product, index) in filteredProducts" :key="product.id">
+            <td>{{ index + 1 }}</td>
             <td>{{ product.name }}</td>
             <td>{{ product.category }}</td>
             <td>{{ product.code }}</td>
@@ -61,6 +61,9 @@
             </td>
           </tr>
         </tbody>
+        <tr v-if="filteredProducts.length === 0">
+          <td colspan="7" style="text-align: center;">No products found.</td>
+        </tr>
       </table>
     </div>
     
@@ -174,9 +177,7 @@ export default {
       
       const query = this.searchQuery.toLowerCase();
       return this.products.filter(product => {
-        return product.id.toString().includes(query) ||
-               product.name.toLowerCase().includes(query) ||
-               product.category.toLowerCase().includes(query) ||
+        return product.name.toLowerCase().includes(query) ||
                product.code.includes(query);
       });
     },
@@ -203,13 +204,12 @@ export default {
     openEditModal(product) {
       this.isEditing = true;
       this.currentProductId = product.id;
-      // Create a copy of the product data to avoid direct mutation
       this.formData = { 
         name: product.name,
         category: product.category,
         code: product.code,
         cost: product.cost,
-        quantity: product.quantity
+        quantity_available: product.quantity_available
       };
       this.isModalOpen = true;
     },
@@ -225,41 +225,29 @@ export default {
         console.error('Failed to fetch products:', error);
       }
     },
-    submitForm() {
-      if (this.isEditing) {
-        // Update existing product
-        const index = this.products.findIndex(p => p.id === this.currentProductId);
-        if (index !== -1) {
-          this.products[index] = {
-            ...this.products[index],
-            name: this.formData.name,
-            category: this.formData.category,
-            code: this.formData.code,
-            cost: this.formData.cost,
-            quantity_available: parseInt(this.formData.quantity_available) || 0
-          };
-          console.log(`Updated product with ID ${this.currentProductId}`);
+    async submitForm() {
+      try {
+        if (this.isEditing) {
+          // Update product
+          await api.put(`/api/supplier-products/${this.currentProductId}`, this.formData);
+        } else {
+          // Create new product
+          await api.post('/api/supplier-products', this.formData);
         }
-      } else {
-        // Create new product
-        const newId = Math.max(...this.products.map(p => p.id), 0) + 1;
-        const newProduct = {
-          id: newId,
-          name: this.formData.name,
-          category: this.formData.category,
-          code: this.formData.code,
-          cost: this.formData.cost,
-          quantity: parseInt(this.formData.quantity) || 0
-        };
-        this.products.push(newProduct);
-        console.log('Added new product', newProduct);
-      }
-      this.closeModal();
+        this.closeModal();
+        this.fetchProducts();
+      } catch (error) {
+        console.error('Failed to save product:', error);
+      } 
     },
-    deleteProduct(id) {
+    async deleteProduct(product_id) {
       if (confirm('Are you sure you want to delete this product?')) {
-        this.products = this.products.filter(product => product.id !== id);
-        console.log(`Deleted product with ID ${id}`);
+        try {
+          await api.delete(`/api/supplier-products/${product_id}`);
+          this.fetchProducts();
+        } catch (error) {
+          console.error('Failed to delete product:', error);
+        }
       }
     }
   }

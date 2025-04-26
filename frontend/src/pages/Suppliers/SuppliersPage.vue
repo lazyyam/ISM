@@ -24,7 +24,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>No. </th>
               <th>Name</th>
               <th>Company</th>
               <th>Address</th>
@@ -33,15 +33,33 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="supplier in filteredSuppliers" :key="supplier.id">
-              <td>{{ supplier.id }}</td>
+            <tr v-for="(supplier, index) in filteredSuppliers" :key="supplier.id">
+              <td>{{ index + 1 }}</td>
               <td>{{ supplier.full_name }}</td>
               <td>{{ supplier.company_name }}</td>
               <td>{{ supplier.company_address }}</td>
-              <td>{{ supplier.phone_number }}</td>
+              <td>
+                <div class="whatsapp-container">
+                  <a 
+                    :href="`https://wa.me/${supplier.phone_number.replace(/\D/g, '')}`" 
+                    target="_blank" 
+                    class="whatsapp-link"
+                  >
+                    <img 
+                      :src="require(`@/assets/icons/whatsapp_icon.svg`)" 
+                      alt="WhatsApp" 
+                      class="whatsapp-icon"
+                    />
+                  </a>
+                  <span class="phone-text">{{ supplier.phone_number }}</span>
+                </div>
+              </td>
               <td>{{ supplier.email }}</td>
             </tr>
           </tbody>
+          <tr v-if="filteredSuppliers.length === 0">
+            <td colspan="7" style="text-align: center;">No suppliers found.</td>
+          </tr>
         </table>
       </div>
     </div>
@@ -217,5 +235,43 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6v6m0 0v6m0-6h6m-6 0H6' /%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
+  }
+
+  .whatsapp-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .whatsapp-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+  }
+
+  .whatsapp-link:hover {
+    background-color: #25d36633;
+    transform: scale(1.1);
+  }
+
+  .whatsapp-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .phone-text {
+    color: #2d3748;
+    font-size: 14px;
+  }
+
+  /* Hide number on mobile */
+  @media (max-width: 640px) { 
+    .phone-text {
+      display: none;
+    }
   }
   </style>

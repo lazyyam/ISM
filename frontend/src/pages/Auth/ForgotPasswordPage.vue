@@ -117,7 +117,7 @@
     font-weight: 600;
     margin-bottom: 1rem;
     text-align: left;
-    padding-left: 2.2rem;
+    padding-left: 2.0rem;
   }
   
   .description {
@@ -144,7 +144,7 @@
   }
   
   .input-group input {
-    width: 80%;
+    width: 84%;
     padding: 8px;
     border: 1px solid #8F8F8F;
     background-color: #EDF0F2;

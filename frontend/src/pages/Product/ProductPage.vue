@@ -24,7 +24,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>No.</th>
               <th>Name</th>
               <th>Category</th>
               <th>Code</th>
@@ -37,10 +37,10 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="product in filteredProducts" :key="product.id">
+            <template v-for="(product, index) in filteredProducts" :key="product.id">
               <!-- Main Product Row -->
               <tr :class="{'expanded': expandedProductId === product.id}">
-                <td>{{ product.id }}</td>
+                <td>{{ index + 1 }}</td>
                 <td>{{ product.name }}</td>
                 <td>{{ product.category }}</td>
                 <td>{{ product.code }}</td>
@@ -128,6 +128,9 @@
               </tr>
             </template>
           </tbody>
+          <tr v-if="filteredProducts.length === 0">
+            <td colspan="7" style="text-align: center;">No products found.</td>
+          </tr>
         </table>
       </div>
       
@@ -572,14 +575,6 @@
           console.error('Failed to process sale:', error);
         }
       },
-      async deleteBatch(product_id, batch_id) {
-        try {
-            await api.delete(`/api/products/${product_id}/batches/${batch_id}`);
-            this.fetchProducts();
-        } catch (error) {
-            console.error('Failed to delete batch:', error);
-        }
-      },
       async deleteProduct(product_id) {
         if (confirm('Are you sure you want to delete this product?')) {
           try {
@@ -588,6 +583,14 @@
           } catch (error) {
             console.error('Failed to delete product:', error);
           }
+        }
+      },
+      async deleteBatch(product_id, batch_id) {
+        try {
+            await api.delete(`/api/products/${product_id}/batches/${batch_id}`);
+            this.fetchProducts();
+        } catch (error) {
+            console.error('Failed to delete batch:', error);
         }
       },
       updateProductQuantity(product_id) {

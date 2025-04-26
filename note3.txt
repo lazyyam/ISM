@@ -1,0 +1,65 @@
+Let's gooo 🚀!
+I'll show you a clean way to hide the phone number on small screens and only show the WhatsApp icon.
+
+🛠️ Step-by-step:
+🔵 Step 1: Update your <td> like this:
+
+html
+Copy
+Edit
+<td>
+  <a 
+    :href="`https://wa.me/${supplier.phone_number.replace(/\D/g, '')}`" 
+    target="_blank" 
+    class="whatsapp-link"
+  >
+    <img 
+      :src="whatsappIcon" 
+      alt="WhatsApp" 
+      class="whatsapp-icon"
+    />
+    <span class="phone-text">{{ supplier.phone_number }}</span>
+  </a>
+</td>
+✅ Here, the number {{ supplier.phone_number }} is wrapped inside a <span class="phone-text">...</span>.
+
+🔵 Step 2: Add this to your <style scoped> at the bottom:
+
+css
+Copy
+Edit
+.whatsapp-link {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* space between icon and text */
+  color: #2d3748;
+  text-decoration: none;
+}
+
+.whatsapp-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* By default, show number */
+.phone-text {
+  display: inline;
+}
+
+/* Hide phone number on small screens (e.g. width <= 640px) */
+@media (max-width: 640px) {
+  .phone-text {
+    display: none;
+  }
+}
+✅ @media (max-width: 640px) means on mobile, the phone number will hide but the WhatsApp icon still shows.
+
+✨ Result:
+
+Device	Display
+Desktop	WhatsApp icon + phone number
+Mobile	Only WhatsApp icon (number hidden)
+✅ When user clicks, it still opens WhatsApp chat directly with that number!
+
+Would you also want me to show you an even prettier effect like hover effect on desktop or icon slightly bigger on mobile for better touch target? 🔥 (optional polish)
+(only if you want!) 🚀

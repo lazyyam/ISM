@@ -25,7 +25,7 @@
           <thead>
             <tr>
               <th class="action-cell">Action</th>
-              <th>ID</th>
+              <th>No.</th>
               <th>Order Date</th>
               <th>Supplier</th>
               <th>Company</th>
@@ -35,7 +35,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in filteredOrders" :key="order.id">
+            <tr v-for="(order, index) in filteredOrders" :key="order.id">
               <td class="action-cell">
                 <button 
                   class="edit-btn" 
@@ -45,7 +45,7 @@
                   <i class="edit-icon"></i>
                 </button>
               </td>
-              <td>{{ order.id }}</td>
+              <td>{{ index + 1 }}</td>
               <td>{{ order.orderDate }}</td>
               <td>{{ order.supplier }}</td>
               <td>{{ order.company }}</td>

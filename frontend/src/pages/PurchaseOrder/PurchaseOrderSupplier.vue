@@ -24,7 +24,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>No.</th>
               <th>Order Date</th>
               <th>Description</th>
               <th>Total Cost</th>
@@ -32,8 +32,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in filteredOrders" :key="order.id">
-              <td>{{ order.id }}</td>
+            <tr v-for="(order, index) in filteredOrders" :key="order.id">
+              <td>{{ index + 1 }}</td>
               <td>{{ order.orderDate }}</td>
               <td>{{ order.description }}</td>
               <td>{{ order.totalCost }}</td>

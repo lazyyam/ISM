@@ -35,14 +35,16 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
-        const refreshToken = localStorage.getItem("refresh_token");
+        const refresh_token = localStorage.getItem("refresh_token");
         
-        if (!refreshToken) {
+        if (!refresh_token) {
           throw new Error("No refresh token");
         }
         
-        const response = await axios.post(`${API_URL}/api/refresh-token`, {
-          refresh_token: refreshToken
+        const response = await axios.post(`${API_URL}/api/refresh-token`, refresh_token, {
+          headers:{
+            'Content-Type': 'application/json'
+          }
         });
         
         const newToken = response.data.access_token;
@@ -60,7 +62,7 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-        return Promise.reject(error);
+    return Promise.reject(error);
   }
 );
 
