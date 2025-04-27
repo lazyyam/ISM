@@ -7,6 +7,7 @@ from controllers.auth_controller import auth_router
 from controllers.product_controller import product_router
 from controllers.supplier_controller import supplier_router
 from controllers.supplier_product_controller import supplier_product_router
+from controllers.purchase_order_controller import purchase_order_router
 
 app = FastAPI()
 
@@ -24,6 +25,7 @@ app.include_router(auth_router, prefix="/api", tags=["Auth"])
 app.include_router(product_router, prefix="/api/products", tags=["Products"])
 app.include_router(supplier_router, prefix="/api/suppliers", tags=["Suppliers"])
 app.include_router(supplier_product_router, prefix="/api/supplier-products", tags=["Supplier Products"])
+app.include_router(purchase_order_router, prefix="/api/purchase-orders", tags=["Purchase Orders"])
 
 
 @app.get("/test-db")
