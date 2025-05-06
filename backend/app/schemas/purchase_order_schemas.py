@@ -36,3 +36,6 @@ class PurchaseOrderRead(PurchaseOrderBase):
 
     class Config:
         orm_mode = True
+
+class PurchaseOrderStatusUpdate(BaseModel):
+    status: str
