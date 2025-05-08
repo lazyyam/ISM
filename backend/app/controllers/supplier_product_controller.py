@@ -82,3 +82,15 @@ def delete_supplier_product(
     db.delete(product)
     db.commit()
     return {"detail": "Product deleted successfully"}
+
+
+# Get Supplier Product by Supplier ID
+@supplier_product_router.get("/by-supplier/{supplier_id}", response_model=List[SupplierProductRead])
+def get_products_by_supplier(
+    supplier_id: int,
+    db: Session = Depends(get_db),
+):
+    products = db.query(SupplierProduct).filter(SupplierProduct.supplier_id == supplier_id).all()
+    if not products:
+        raise HTTPException(status_code=404, detail="No products found for the given supplier ID")
+    return products

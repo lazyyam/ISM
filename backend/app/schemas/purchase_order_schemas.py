@@ -28,11 +28,15 @@ class PurchaseOrderBase(BaseModel):
 
 class PurchaseOrderCreate(PurchaseOrderBase):
     items: List[PurchaseOrderItemCreate]
+    description: Optional[str] = None
 
 class PurchaseOrderRead(PurchaseOrderBase):
     id: int
     order_date: datetime
     items: List[PurchaseOrderItemRead]
+    supplier_name: str
+    company_name: str
+    description: Optional[str] = None
 
     class Config:
         orm_mode = True

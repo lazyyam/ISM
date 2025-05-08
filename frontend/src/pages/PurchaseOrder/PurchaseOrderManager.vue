@@ -47,14 +47,12 @@
               </button>
             </td>
             <td>{{ index + 1 }}</td>
-            <td>{{ formatDate(order.orderDate) }}</td>
-            <td>{{ order.supplier }}</td>
-            <td>{{ order.company }}</td>
+            <td>{{ formatDate(order.order_date) }}</td>
+            <td>{{ order.supplier_name }}</td>
+            <td>{{ order.company_name }}</td>
             <td>{{ order.description }}</td>
-            <td>{{ formatCurrency(order.totalCost) }}</td>
-            <td>
-              <span :class="getStatusClass(order.status)">{{ order.status }}</span>
-            </td>
+            <td>{{ formatCurrency(order.total_cost) }}</td>
+            <td>{{  order.status }}</td>
           </tr>
         </tbody>
       </table>
@@ -83,17 +81,17 @@
         </div>
         
         <div class="form-group">
-          <label for="supplier">Supplier:</label>
+          <label for="supplier">Select Supplier:</label>
           <select 
             id="supplier" 
             v-model="formData.supplierId" 
             class="form-control"
             @change="supplierChanged"
           >
-            <option value="">Select Supplier</option>
-            <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-              {{ supplier.name }} ({{ supplier.company }})
-            </option>
+          <option value="" disabled>Select Supplier</option>
+          <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
+            {{ supplier.company_name }}
+          </option>
           </select>
         </div>
         
@@ -120,19 +118,22 @@
           <div v-for="(item, index) in formData.orderItems" :key="index" class="product-row">
             <div class="product-name">
               <select 
-                v-model="item.productId" 
+                v-model="formData.orderItems[index].productId" 
                 class="form-control"
                 @change="productChanged(index)"
               >
-                <option value="">Select Product</option>
-                <option 
-                  v-for="product in supplierProducts" 
-                  :key="product.id" 
-                  :value="product.id"
-                >
-                  {{ product.name }} ({{ formatCurrency(product.cost) }})
+              <option value="" disabled>Select Product</option>
+              <option 
+                v-for="product in supplierProducts" 
+                :key="product.id" 
+                :value="product.id"
+              >
+                  {{ product.name }}
                 </option>
               </select>
+              <div v-if="supplierProducts.length === 0">
+                <p>No products available for the selected supplier.</p>
+              </div>
             </div>
             <div class="product-quantity">
               <input 
@@ -206,6 +207,7 @@
 
 <script>
 import BaseModal from "@/components/BaseModal.vue";
+import api from "@/services/api";
 
 export default {
   name: 'PurchaseOrderManager',
@@ -218,69 +220,18 @@ export default {
       isModalOpen: false,
       isEditing: false,
       currentOrderId: null,
-      orders: [
-        {
-          id: 1,
-          orderDate: '2024-05-06',
-          supplier: 'Chong',
-          company: 'Chong\'s Trading',
-          description: 'Canned Foods',
-          totalCost: 300.00,
-          status: 'Delivered'
-        },
-        {
-          id: 2,
-          orderDate: '2024-05-15',
-          supplier: 'Ali',
-          company: 'Ali Enterprise Sdn. Bhd.',
-          description: 'Bread and drinks',
-          totalCost: 220.00,
-          status: 'Delivered'
-        },
-        {
-          id: 3,
-          orderDate: '2024-06-15',
-          supplier: 'Chong',
-          company: 'Chong\'s Trading',
-          description: 'Canned Foods',
-          totalCost: 300.00,
-          status: 'Processing'
-        },
-        {
-          id: 4,
-          orderDate: '2024-06-18',
-          supplier: 'Chong',
-          company: 'Chong\'s Trading',
-          description: 'Canned Foods',
-          totalCost: 300.00,
-          status: 'Pending'
-        }
-      ],
-      suppliers: [
-        { id: 1, name: 'Chong', company: 'Chong\'s Trading' },
-        { id: 2, name: 'Ali', company: 'Ali Enterprise Sdn. Bhd.' },
-        { id: 3, name: 'Kumar', company: 'Kumar Wholesales' }
-      ],
-      products: [
-        { id: 1, name: 'Canned Tuna', supplierId: 1, cost: 5.50 },
-        { id: 2, name: 'Canned Corn', supplierId: 1, cost: 4.20 },
-        { id: 3, name: 'Canned Beans', supplierId: 1, cost: 3.80 },
-        { id: 4, name: 'White Bread', supplierId: 2, cost: 3.00 },
-        { id: 5, name: 'Whole Wheat Bread', supplierId: 2, cost: 4.50 },
-        { id: 6, name: 'Soda', supplierId: 2, cost: 1.50 },
-        { id: 7, name: 'Rice', supplierId: 3, cost: 25.00 },
-        { id: 8, name: 'Flour', supplierId: 3, cost: 12.50 }
-      ],
+      orders: [],
+      suppliers: [],
+      supplierProducts: [],
       formData: {
-        orderDate: '',
-        supplierId: '',
-        description: '',
-        status: 'Pending', // Default status is always Pending
+        orderDate: "",
+        supplierId: "",
+        description: "",
+        status: "Pending", // Default status is always Pending
         orderItems: [
-          { productId: '', quantity: 1, cost: 0, total: 0 }
-        ]
+          { productId: "", quantity: 1, cost: 0, total: 0 },
+        ],
       },
-      supplierProducts: []
     };
   },
   computed: {
@@ -307,23 +258,50 @@ export default {
       }
       
       // Check if at least one item is selected and has quantity
-      return this.formData.orderItems.some(item => item.productId && item.quantity > 0);
+      return this.formData.orderItems.some(
+        (item) => item.productId && item.quantity > 0
+      );
     }
   },
   mounted() {
-    // You can fetch real data from your API here
-    // this.fetchOrders();
-    // this.fetchSuppliers();
-    // this.fetchProducts();
-    
-    // Set current date as default for new orders
-    const today = new Date();
-    this.formData.orderDate = today.toISOString().split('T')[0];
+    this.fetchOrders();
+    this.fetchSuppliers();
   },
   methods: {
+    async fetchOrders() {
+      try {
+        const response = await api.get("/api/purchase-orders");
+        this.orders = response.data;
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+      }
+    },
+    async fetchSuppliers() {
+      try {
+        const response = await api.get("/api/suppliers");
+        this.suppliers = response.data;
+      } catch (error) {
+        console.error("Failed to fetch suppliers:", error);
+      }
+    },
+    async fetchSupplierProducts() {
+      if (!this.formData.supplierId) {
+        this.supplierProducts = [];
+        return;
+      }
+
+      try {
+        const response = await api.get(`/api/supplier-products/by-supplier/${this.formData.supplierId}`);
+        this.supplierProducts = response.data.filter(
+          (product) => product.supplier_id === parseInt(this.formData.supplierId)
+        );
+      } catch (error) {
+        console.error("Failed to fetch supplier products:", error);
+      }
+    },
     formatDate(dateString) {
-      if (!dateString) return '';
-      
+      if (!dateString) return "";
+
       const date = new Date(dateString);
       return date.toLocaleDateString();
     },
@@ -336,36 +314,32 @@ export default {
       this.resetForm();
       this.isModalOpen = true;
     },
-    editOrder(order) {
+    async editOrder(order) {
       this.isEditing = true;
       this.currentOrderId = order.id;
-      
-      // Find the supplier id based on supplier name
-      const supplier = this.suppliers.find(s => s.name === order.supplier);
-      const supplierId = supplier ? supplier.id : '';
-      
-      // Reset the form and then set values
-      this.resetForm();
-      
-      this.formData = {
-        orderDate: order.orderDate,
-        supplierId: supplierId,
-        description: order.description,
-        status: order.status, // Keep the existing status for edits
-        orderItems: []
-      };
-      
-      // Here you would typically fetch order items from API
-      // For demo purposes, adding a dummy item
-      this.formData.orderItems = [
-        { productId: '', quantity: 1, cost: 0, total: 0 }
-      ];
-      
-      if (supplierId) {
-        this.supplierChanged();
+
+      try {
+        const response = await api.get(`/api/purchase-orders/${order.id}`);
+        const orderData = response.data;
+
+        this.formData = {
+          orderDate: orderData.order_date,
+          supplierId: orderData.supplier_id,
+          description: orderData.description || "",
+          status: orderData.status,
+          orderItems: orderData.items.map((item) => ({
+            productId: item.supplier_product_id,
+            quantity: item.quantity,
+            cost: item.cost,
+            total: item.subtotal,
+          })),
+        };
+
+        await this.fetchSupplierProducts();
+        this.isModalOpen = true;
+      } catch (error) {
+        console.error("Failed to fetch order details:", error);
       }
-      
-      this.isModalOpen = true;
     },
     closeModal() {
       this.isModalOpen = false;
@@ -373,35 +347,28 @@ export default {
     resetForm() {
       const today = new Date();
       this.formData = {
-        orderDate: today.toISOString().split('T')[0],
-        supplierId: '',
-        description: '',
-        status: 'Pending', // Always default to Pending
+        orderDate: today.toISOString().split("T")[0],
+        supplierId: "",
+        description: "",
+        status: "Pending", // Default status
         orderItems: [
-          { productId: '', quantity: 1, cost: 0, total: 0 }
-        ]
+          { productId: "", quantity: 1, cost: 0, total: 0 },
+        ],
       };
       this.supplierProducts = [];
     },
-    supplierChanged() {
-      // Filter products by selected supplier
-      if (this.formData.supplierId) {
-        this.supplierProducts = this.products.filter(
-          p => p.supplierId === this.formData.supplierId
-        );
-        
-        // Reset order items when supplier changes
-        this.formData.orderItems = [
-          { productId: '', quantity: 1, cost: 0, total: 0 }
-        ];
-      } else {
-        this.supplierProducts = [];
-      }
+    async supplierChanged() {
+      await this.fetchSupplierProducts();
+      this.formData.orderItems = [
+        { productId: "", quantity: 1, cost: 0, total: 0 },
+      ];
     },
     productChanged(index) {
       const item = this.formData.orderItems[index];
       if (item.productId) {
-        const product = this.products.find(p => p.id === item.productId);
+        const product = this.supplierProducts.find(
+          (p) => p.id === item.productId
+        );
         if (product) {
           item.cost = product.cost;
           this.updateItemTotal(index);
@@ -416,11 +383,11 @@ export default {
       item.total = item.quantity * item.cost;
     },
     addOrderItem() {
-      this.formData.orderItems.push({ 
-        productId: '', 
-        quantity: 1, 
-        cost: 0, 
-        total: 0 
+      this.formData.orderItems.push({
+        productId: "",
+        quantity: 1,
+        cost: 0,
+        total: 0,
       });
     },
     removeOrderItem(index) {
@@ -433,74 +400,48 @@ export default {
         return total + (item.total || 0);
       }, 0);
     },
-    getStatusClass(status) {
-      switch(status.toLowerCase()) {
-        case 'delivered':
-          return 'status-delivered';
-        case 'processing':
-          return 'status-processing';
-        case 'pending':
-          return 'status-pending';
-        default:
-          return '';
-      }
-    },
     async submitForm() {
       if (!this.isFormValid) return;
-      
+
       try {
-        // Find supplier information
-        const supplier = this.suppliers.find(s => s.id === this.formData.supplierId);
-        
         const orderData = {
-          orderDate: this.formData.orderDate,
-          supplier: supplier ? supplier.name : '',
-          company: supplier ? supplier.company : '',
+          supplier_id: this.formData.supplierId,
+          status: this.formData.status,
+          total_cost: this.calculateTotalCost(),
           description: this.formData.description,
-          totalCost: this.calculateTotalCost(),
-          status: this.formData.status, // For new orders, this will always be 'Pending'
-          items: this.formData.orderItems.map(item => {
-            const product = this.products.find(p => p.id === item.productId);
-            return {
-              productId: item.productId,
-              productName: product ? product.name : '',
-              quantity: item.quantity,
-              cost: item.cost,
-              total: item.total
-            };
-          })
+          items: this.formData.orderItems.map((item) => ({
+            supplier_product_id: item.productId,
+            quantity: item.quantity,
+            unit_cost: item.cost,
+            subtotal: item.total,
+          })),
         };
-        
+
         if (this.isEditing) {
-          // Update existing order
-          // await api.put(`/api/purchase-orders/${this.currentOrderId}`, orderData);
-          
-          // For demo purposes, update local order
-          const index = this.orders.findIndex(o => o.id === this.currentOrderId);
-          if (index !== -1) {
-            this.orders[index] = {
-              ...this.orders[index],
-              ...orderData
-            };
-          }
+          await api.put(
+            `/api/purchase-orders/${this.currentOrderId}`,
+            orderData
+          );
         } else {
-          // Create new order (status will always be 'Pending')
-          // const response = await api.post('/api/purchase-orders', orderData);
-          
-          // For demo purposes, add to local orders
-          const newOrder = {
-            id: this.orders.length + 1,
-            ...orderData
-          };
-          this.orders.push(newOrder);
+          await api.post("/api/purchase-orders", orderData);
         }
-        
+
+        this.fetchOrders();
         this.closeModal();
       } catch (error) {
-        console.error('Failed to save purchase order:', error);
+        console.error("Failed to save purchase order:", error);
       }
-    }
-  }
+    },
+    async deleteOrder(orderId) {
+      try {
+        await api.delete(`/api/purchase-orders/${orderId}`);
+        this.fetchOrders();
+      } catch (error) {
+        console.error("Failed to delete order:", error);
+      }
+    },
+  },
+  
 };
 </script>
 

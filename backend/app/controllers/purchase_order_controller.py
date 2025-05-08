@@ -13,9 +13,31 @@ purchase_order_router = APIRouter()
 @purchase_order_router.get("/", response_model=List[PurchaseOrderRead])
 def get_purchase_orders(db: Session = Depends(get_db)):
     purchase_orders = db.query(PurchaseOrder).options(
-        joinedload(PurchaseOrder.items)
+        joinedload(PurchaseOrder.supplier)
     ).all()
-    return purchase_orders
+    return [
+        {
+            "id": order.id,
+            "order_date": order.order_date,
+            "supplier_id": order.supplier_id,
+            "supplier_name": order.supplier.full_name,  
+            "company_name": order.supplier.company_name,  
+            "description": order.description, 
+            "status": order.status,
+            "total_cost": order.total_cost,
+            "items": [
+                {
+                    "id": item.id,
+                    "supplier_product_id": item.supplier_product_id,
+                    "quantity": item.quantity,
+                    "unit_cost": item.unit_cost,
+                    "subtotal": item.subtotal,
+                }
+                for item in order.items
+            ],
+        }
+        for order in purchase_orders
+    ]
 
 
 # Create a Purchase Order with Items
@@ -24,7 +46,8 @@ def create_purchase_order(order_data: PurchaseOrderCreate, db: Session = Depends
     new_order = PurchaseOrder(
         supplier_id=order_data.supplier_id,
         status=order_data.status,
-        total_cost=order_data.total_cost
+        total_cost=order_data.total_cost,
+        description=order_data.description
     )
     db.add(new_order)
     db.flush()  # Make sure new_order.id is available for FK
