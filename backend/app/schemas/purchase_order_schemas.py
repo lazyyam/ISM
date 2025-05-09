@@ -10,6 +10,9 @@ class PurchaseOrderItemBase(BaseModel):
     unit_cost: float
     subtotal: float
 
+    class Config:
+        orm_mode = True
+
 class PurchaseOrderItemCreate(PurchaseOrderItemBase):
     pass
 
@@ -37,6 +40,8 @@ class PurchaseOrderRead(PurchaseOrderBase):
     supplier_name: str
     company_name: str
     description: Optional[str] = None
+    supplier_name: Optional[str] = None
+    company_name: Optional[str] = None
 
     class Config:
         orm_mode = True

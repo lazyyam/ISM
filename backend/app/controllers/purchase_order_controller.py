@@ -15,14 +15,16 @@ def get_purchase_orders(db: Session = Depends(get_db)):
     purchase_orders = db.query(PurchaseOrder).options(
         joinedload(PurchaseOrder.supplier)
     ).all()
-    return [
-        {
+
+    response = []
+    for order in purchase_orders:
+        response.append({
             "id": order.id,
             "order_date": order.order_date,
             "supplier_id": order.supplier_id,
-            "supplier_name": order.supplier.full_name,  
-            "company_name": order.supplier.company_name,  
-            "description": order.description, 
+            "supplier_name": order.supplier.full_name if order.supplier else None,
+            "company_name": order.supplier.company_name if order.supplier else None,
+            "description": order.description,
             "status": order.status,
             "total_cost": order.total_cost,
             "items": [
@@ -35,9 +37,10 @@ def get_purchase_orders(db: Session = Depends(get_db)):
                 }
                 for item in order.items
             ],
-        }
-        for order in purchase_orders
-    ]
+        })
+
+    return response
+
 
 
 # Create a Purchase Order with Items
