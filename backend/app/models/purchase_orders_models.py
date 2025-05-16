@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, DECIMAL, Text
+from sqlalchemy import Column, Integer, ForeignKey, Date, String, DECIMAL, Text
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, timezone
@@ -8,7 +8,7 @@ class PurchaseOrder(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    order_date = Column(DateTime, default=datetime.now(timezone.utc))
+    order_date = Column(Date, default=datetime.now(timezone.utc).date())
     status = Column(String(50), default="pending")
     total_cost = Column(DECIMAL(10, 2), default=0.00)
     description = Column(Text, nullable=True)

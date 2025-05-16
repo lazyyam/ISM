@@ -25,7 +25,6 @@
       <table>
         <thead>
           <tr>
-            <th class="action-cell">Action</th>
             <th>No.</th>
             <th>Order Date</th>
             <th>Supplier</th>
@@ -33,19 +32,11 @@
             <th>Description</th>
             <th>Total Cost</th>
             <th>Status</th>
+            <th class="action-cell">Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(order, index) in filteredOrders" :key="order.id">
-            <td class="action-cell">
-              <button 
-                class="edit-btn" 
-                @click="editOrder(order)"
-                title="Edit order"
-              >
-                <i class="edit-icon"></i>
-              </button>
-            </td>
             <td>{{ index + 1 }}</td>
             <td>{{ formatDate(order.order_date) }}</td>
             <td>{{ order.supplier_name }}</td>
@@ -53,6 +44,24 @@
             <td>{{ order.description }}</td>
             <td>{{ formatCurrency(order.total_cost) }}</td>
             <td>{{  order.status }}</td>
+            <td class="action-cell">
+              <div class="action-buttons">
+                <button 
+                  class="edit-btn" 
+                  @click="editOrder(order)"
+                  title="Edit order"
+                >
+                  <i class="edit-icon"></i>
+                </button>
+                <button 
+                  class="delete-btn" 
+                  @click="deleteOrder(order.id)"
+                  title="Delete order"
+                >
+                  <i class="delete-icon"></i>
+                </button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -330,7 +339,7 @@ export default {
           orderItems: orderData.items.map((item) => ({
             productId: item.supplier_product_id,
             quantity: item.quantity,
-            cost: item.cost,
+            cost: item.unit_cost,
             total: item.subtotal,
           })),
         };
@@ -433,11 +442,13 @@ export default {
       }
     },
     async deleteOrder(orderId) {
-      try {
-        await api.delete(`/api/purchase-orders/${orderId}`);
-        this.fetchOrders();
-      } catch (error) {
-        console.error("Failed to delete order:", error);
+      if (confirm('Are you sure you want to delete this order?')) {
+        try {
+          await api.delete(`/api/purchase-orders/${orderId}`);
+          this.fetchOrders(); // Refresh the orders list
+        } catch (error) {
+          console.error('Failed to delete order:', error);
+        }
       }
     },
   },
@@ -548,8 +559,14 @@ td {
 }
 
 .action-cell {
-  width: 60px;
+  width: 100px;
   text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
 
 .edit-btn {
@@ -565,8 +582,25 @@ td {
   transition: background-color 0.2s;
 }
 
+.edit-btn, .delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
 .edit-btn:hover {
   background-color: #edf2f7;
+}
+
+.delete-btn:hover {
+  background-color: #fed7d7;
 }
 
 .edit-icon {

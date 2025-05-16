@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
 
 
 #PURCHASE_ORDER_ITEM
@@ -35,10 +34,8 @@ class PurchaseOrderCreate(PurchaseOrderBase):
 
 class PurchaseOrderRead(PurchaseOrderBase):
     id: int
-    order_date: datetime
+    order_date: str
     items: List[PurchaseOrderItemRead]
-    supplier_name: str
-    company_name: str
     description: Optional[str] = None
     supplier_name: Optional[str] = None
     company_name: Optional[str] = None

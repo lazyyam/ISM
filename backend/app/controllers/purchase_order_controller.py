@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
+from utils.auth_dependencies import get_current_user
 from models.purchase_orders_models import PurchaseOrder
 from models.purchase_order_items_models import PurchaseOrderItem
-from schemas.purchase_order_schemas import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderItemCreate, PurchaseOrderStatusUpdate
+from schemas.purchase_order_schemas import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderStatusUpdate
 from typing import List
 
 purchase_order_router = APIRouter()
@@ -20,7 +21,7 @@ def get_purchase_orders(db: Session = Depends(get_db)):
     for order in purchase_orders:
         response.append({
             "id": order.id,
-            "order_date": order.order_date,
+            "order_date": order.order_date.strftime("%Y-%m-%d"),
             "supplier_id": order.supplier_id,
             "supplier_name": order.supplier.full_name if order.supplier else None,
             "company_name": order.supplier.company_name if order.supplier else None,
@@ -68,7 +69,26 @@ def create_purchase_order(order_data: PurchaseOrderCreate, db: Session = Depends
 
     db.commit()
     db.refresh(new_order)
-    return new_order
+    return {
+        "id": new_order.id,
+        "order_date": new_order.order_date.strftime("%Y-%m-%d"),  # Format the date
+        "supplier_id": new_order.supplier_id,
+        "supplier_name": new_order.supplier.full_name if new_order.supplier else None,
+        "company_name": new_order.supplier.company_name if new_order.supplier else None,
+        "description": new_order.description,
+        "status": new_order.status,
+        "total_cost": new_order.total_cost,
+        "items": [
+            {
+                "id": item.id,
+                "supplier_product_id": item.supplier_product_id,
+                "quantity": item.quantity,
+                "unit_cost": item.unit_cost,
+                "subtotal": item.subtotal,
+            }
+            for item in new_order.items
+        ],
+    }
 
 
 # Update Purchase Order
@@ -78,11 +98,13 @@ def update_purchase_order(order_id: int, updated_data: PurchaseOrderCreate, db: 
     if not order:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
 
+    # Update the fields of the purchase order
     order.supplier_id = updated_data.supplier_id
     order.status = updated_data.status
     order.total_cost = updated_data.total_cost
+    order.description = updated_data.description
 
-    # Optionally update items
+    # Delete existing items and add updated items
     db.query(PurchaseOrderItem).filter(PurchaseOrderItem.purchase_order_id == order_id).delete()
     for item_data in updated_data.items:
         new_item = PurchaseOrderItem(
@@ -96,7 +118,26 @@ def update_purchase_order(order_id: int, updated_data: PurchaseOrderCreate, db: 
 
     db.commit()
     db.refresh(order)
-    return order
+    return {
+        "id": order.id,
+        "order_date": order.order_date.strftime("%Y-%m-%d"),
+        "supplier_id": order.supplier_id,
+        "supplier_name": order.supplier.full_name if order.supplier else None,
+        "company_name": order.supplier.company_name if order.supplier else None,
+        "description": order.description,
+        "status": order.status,
+        "total_cost": order.total_cost,
+        "items": [
+            {
+                "id": item.id,
+                "supplier_product_id": item.supplier_product_id,
+                "quantity": item.quantity,
+                "unit_cost": item.unit_cost,
+                "subtotal": item.subtotal,
+            }
+            for item in order.items
+        ],
+    }
 
 
 # Delete Purchase Order
@@ -113,11 +154,34 @@ def delete_purchase_order(order_id: int, db: Session = Depends(get_db)):
 
 # Get Purchase Order by Supplier ID
 @purchase_order_router.get("/supplier/{supplier_id}", response_model=List[PurchaseOrderRead])
-def get_orders_by_supplier(supplier_id: int, db: Session = Depends(get_db)):
-    orders = db.query(PurchaseOrder).options(joinedload(PurchaseOrder.items)).filter(
-        PurchaseOrder.supplier_id == supplier_id
-    ).all()
-    return orders
+def get_orders_by_supplier(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    orders = db.query(PurchaseOrder).filter(PurchaseOrder.supplier_id == current_user.id).all()
+    return [
+        {
+            "id": order.id,
+            "order_date": order.order_date.strftime("%Y-%m-%d"),  # Format the date
+            "supplier_id": order.supplier_id,
+            "supplier_name": order.supplier.full_name if order.supplier else None,
+            "company_name": order.supplier.company_name if order.supplier else None,
+            "description": order.description,
+            "status": order.status,
+            "total_cost": order.total_cost,
+            "items": [
+                {
+                    "id": item.id,
+                    "supplier_product_id": item.supplier_product_id,
+                    "quantity": item.quantity,
+                    "unit_cost": item.unit_cost,
+                    "subtotal": item.subtotal,
+                }
+                for item in order.items
+            ],
+        }
+        for order in orders
+    ]
 
 
 # Get Purchase Order by ID
@@ -128,7 +192,26 @@ def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
     ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
-    return order
+    return {
+        "id": order.id,
+        "order_date": order.order_date.strftime("%Y-%m-%d"),
+        "supplier_id": order.supplier_id,
+        "supplier_name": order.supplier.full_name if order.supplier else None,
+        "company_name": order.supplier.company_name if order.supplier else None,
+        "description": order.description,
+        "status": order.status,
+        "total_cost": order.total_cost,
+        "items": [
+            {
+                "id": item.id,
+                "supplier_product_id": item.supplier_product_id,
+                "quantity": item.quantity,
+                "unit_cost": item.unit_cost,
+                "subtotal": item.subtotal,
+            }
+            for item in order.items
+        ],
+    }
 
 
 # Update Purchase Order Status

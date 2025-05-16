@@ -34,9 +34,9 @@
           <tbody>
             <tr v-for="(order, index) in filteredOrders" :key="order.id">
               <td>{{ index + 1 }}</td>
-              <td>{{ order.orderDate }}</td>
+              <td>{{ order.order_date }}</td>
               <td>{{ order.description }}</td>
-              <td>{{ order.totalCost }}</td>
+              <td>{{ formatCurrency(order.total_cost) }}</td>
               <td>
                 <span 
                   class="status-badge" 
@@ -56,27 +56,15 @@
   </template>
   
   <script>
+  import api from "@/services/api";
+
   export default {
     name: 'PurchaseOrder',
     data() {
       return {
         searchQuery: '',
-        orders: [
-          {
-            id: 1,
-            orderDate: '05/3/2024',
-            description: 'Canned Foods',
-            totalCost: '300.00',
-            status: 'Delivered'
-          },
-          {
-            id: 2,
-            orderDate: '18/6/2024',
-            description: 'Canned Foods',
-            totalCost: '220.00',
-            status: 'Pending'
-          }
-        ]
+        orders: [],
+        
       };
     },
     computed: {
@@ -88,25 +76,26 @@
         const query = this.searchQuery.toLowerCase();
         return this.orders.filter(order => {
           return order.id.toString().includes(query) ||
-                 order.description.toLowerCase().includes(query);
+                 order.description.toLowerCase().includes(query) ||
+                 order.status.toLowerCase().includes(query);
         });
       }
     },
     mounted() {
-      // You could add API call to fetch orders here
-      // this.fetchOrders();
+      this.fetchOrders();
     },
     methods: {
-      // fetchOrders() {
-      //   // Example implementation with axios
-      //   // axios.get('/api/purchase-orders')
-      //   //   .then(response => {
-      //   //     this.orders = response.data;
-      //   //   })
-      //   //   .catch(error => {
-      //   //     console.error('Error fetching orders:', error);
-      //   //   });
-      // }
+      async fetchOrders() {
+        try {
+          const response = await api.get(`/api/purchase-orders/supplier/${this.supplierId}`);
+          this.orders = response.data;
+        } catch (error) {
+          console.error('Failed to fetch orders:', error);
+        }
+      },
+      formatCurrency(amount) {
+        return `RM ${parseFloat(amount).toFixed(2)}`;
+      },
     }
   };
   </script>
