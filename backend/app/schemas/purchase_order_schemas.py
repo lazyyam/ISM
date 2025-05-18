@@ -17,6 +17,7 @@ class PurchaseOrderItemCreate(PurchaseOrderItemBase):
 
 class PurchaseOrderItemRead(PurchaseOrderItemBase):
     id: int
+    product_name: Optional[str] = None
 
     class Config:
         orm_mode = True

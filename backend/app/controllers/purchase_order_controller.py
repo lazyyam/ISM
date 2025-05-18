@@ -153,16 +153,18 @@ def delete_purchase_order(order_id: int, db: Session = Depends(get_db)):
 
 
 # Get Purchase Order by Supplier ID
-@purchase_order_router.get("/supplier/{supplier_id}", response_model=List[PurchaseOrderRead])
+@purchase_order_router.get("/supplier", response_model=List[PurchaseOrderRead])
 def get_orders_by_supplier(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    orders = db.query(PurchaseOrder).filter(PurchaseOrder.supplier_id == current_user.id).all()
+    orders = db.query(PurchaseOrder).options(
+        joinedload(PurchaseOrder.items).joinedload(PurchaseOrderItem.supplier_product)
+    ).filter(PurchaseOrder.supplier_id == current_user.id).all()
     return [
         {
             "id": order.id,
-            "order_date": order.order_date.strftime("%Y-%m-%d"),  # Format the date
+            "order_date": order.order_date.strftime("%Y-%m-%d"), 
             "supplier_id": order.supplier_id,
             "supplier_name": order.supplier.full_name if order.supplier else None,
             "company_name": order.supplier.company_name if order.supplier else None,
@@ -176,6 +178,7 @@ def get_orders_by_supplier(
                     "quantity": item.quantity,
                     "unit_cost": item.unit_cost,
                     "subtotal": item.subtotal,
+                    "product_name": item.supplier_product.name if item.supplier_product else None
                 }
                 for item in order.items
             ],
@@ -184,12 +187,12 @@ def get_orders_by_supplier(
     ]
 
 
-# Get Purchase Order by ID
+# Get Purchase Order by Order ID
 @purchase_order_router.get("/{order_id}", response_model=PurchaseOrderRead)
 def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.query(PurchaseOrder).options(joinedload(PurchaseOrder.items)).filter(
-        PurchaseOrder.id == order_id
-    ).first()
+    order = db.query(PurchaseOrder).options(
+        joinedload(PurchaseOrder.items).joinedload(PurchaseOrderItem.supplier_product)
+    ).filter(PurchaseOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
     return {
@@ -208,6 +211,7 @@ def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
                 "quantity": item.quantity,
                 "unit_cost": item.unit_cost,
                 "subtotal": item.subtotal,
+                "product_name": item.supplier_product.name if item.supplier_product else None
             }
             for item in order.items
         ],
@@ -224,5 +228,24 @@ def update_purchase_order_status(order_id: int, status_update: PurchaseOrderStat
     order.status = status_update.status
     db.commit()
     db.refresh(order)
-    return order
+    return {
+        "id": order.id,
+        "order_date": order.order_date.strftime("%Y-%m-%d"), 
+        "supplier_id": order.supplier_id,
+        "supplier_name": order.supplier.full_name if order.supplier else None,
+        "company_name": order.supplier.company_name if order.supplier else None,
+        "description": order.description,
+        "status": order.status,
+        "total_cost": order.total_cost,
+        "items": [
+            {
+                "id": item.id,
+                "supplier_product_id": item.supplier_product_id,
+                "quantity": item.quantity,
+                "unit_cost": item.unit_cost,
+                "subtotal": item.subtotal,
+            }
+            for item in order.items
+        ],
+    }
 

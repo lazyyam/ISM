@@ -1,0 +1,10 @@
+max quantity at manager side, also mark as delivered
+which step minus the stock and add stock
+Notification system – Alert manager when supplier accepts/declines.
+
+
+dashboad show notifcation
+
+Show Accept and Decline buttons when status is Pending
+Only allow Mark as Processing once status is Accepted.
+Disable further status updates if status is Declined.

@@ -43,7 +43,19 @@
             <td>{{ order.company_name }}</td>
             <td>{{ order.description }}</td>
             <td>{{ formatCurrency(order.total_cost) }}</td>
-            <td>{{  order.status }}</td>
+            <td>
+              <span 
+                class="status-badge" 
+                :class="{ 
+                  'status-delivered': order.status === 'Delivered',
+                  'status-delivering': order.status === 'Delivering',
+                  'status-processing': order.status === 'Processing',
+                  'status-pending': order.status === 'Pending'
+                }"
+              >
+                {{ order.status }}
+              </span>
+            </td>
             <td class="action-cell">
               <div class="action-buttons">
                 <button 
@@ -647,16 +659,32 @@ td {
   background-repeat: no-repeat;
 }
 
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .status-delivered {
-  color: #2f855a;
+  background-color: #e6fffa;
+  color: #047857;
+}
+
+.status-delivering {
+  background-color: #fcf3fe;
+  color: #9333ea;
 }
 
 .status-processing {
-  color: #dd6b20;
+  background-color: #eff6ff;
+  color: #1d4ed8;
 }
 
 .status-pending {
-  color: #3182ce;
+  background-color: #fff7ed;
+  color: #c2410c;
 }
 
 /* Form Styles */
