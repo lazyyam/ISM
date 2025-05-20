@@ -15,3 +15,4 @@ class PurchaseOrder(Base):
 
     supplier = relationship("User", back_populates="purchase_orders")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order", cascade="all, delete-orphan")
+    status_history = relationship("PurchaseOrderStatusHistory", back_populates="purchase_order", cascade="all, delete-orphan")

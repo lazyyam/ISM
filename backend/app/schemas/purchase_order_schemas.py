@@ -1,5 +1,13 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
+
+
+#PURCHASE_ORDER_STATUS_HISTORY
+class StatusHistoryEntry(BaseModel):
+    status: str
+    updated_at: datetime
+    message: Optional[str] = None
 
 
 #PURCHASE_ORDER_ITEM
@@ -40,9 +48,11 @@ class PurchaseOrderRead(PurchaseOrderBase):
     description: Optional[str] = None
     supplier_name: Optional[str] = None
     company_name: Optional[str] = None
+    status_history: Optional[List[StatusHistoryEntry]] = []
 
     class Config:
         orm_mode = True
 
 class PurchaseOrderStatusUpdate(BaseModel):
     status: str
+    message: Optional[str] = None

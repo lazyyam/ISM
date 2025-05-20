@@ -1,7 +1,6 @@
 <template>
   <div class="purchase-order-container">
     <h1>Purchase Order</h1>
-    
     <div class="purchase-order-actions">
       <div class="search-bar">
         <i class="search-icon"></i>
@@ -11,16 +10,13 @@
           v-model="searchQuery"
         />
       </div>
-      
       <div class="filter-dropdown">
         <button class="filter-btn">
           Filter
           <i class="chevron-down"></i>
         </button>
       </div>
-      
     </div>
-    
     <div class="purchase-order-table">
       <table>
         <thead>
@@ -36,7 +32,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(order, index) in filteredOrders" :key="order.id">
+          <tr 
+            v-for="(order, index) in filteredOrders" 
+            :key="order.id"
+            @click="viewOrderDetails(order)"
+            class="order-row"
+          >
             <td>{{ index + 1 }}</td>
             <td>{{ formatDate(order.order_date) }}</td>
             <td>{{ order.supplier_name }}</td>
@@ -46,30 +47,22 @@
             <td>
               <span 
                 class="status-badge" 
-                :class="{ 
-                  'status-delivered': order.status === 'Delivered',
-                  'status-delivering': order.status === 'Delivering',
-                  'status-processing': order.status === 'Processing',
-                  'status-pending': order.status === 'Pending'
-                }"
+                :class="statusClass(order.status)"
               >
                 {{ order.status }}
               </span>
             </td>
-            <td class="action-cell">
+            <td class="action-cell" @click.stop>
               <div class="action-buttons">
-                <button 
-                  class="edit-btn" 
+                <button
+                  class="edit-btn"
+                  :disabled="order.status !== 'Pending'"
                   @click="editOrder(order)"
-                  title="Edit order"
+                  title="Edit (only when Pending)"
                 >
                   <i class="edit-icon"></i>
                 </button>
-                <button 
-                  class="delete-btn" 
-                  @click="deleteOrder(order.id)"
-                  title="Delete order"
-                >
+                <button class="delete-btn" @click="deleteOrder(order.id)" title="Delete order">
                   <i class="delete-icon"></i>
                 </button>
               </div>
@@ -78,141 +71,167 @@
         </tbody>
       </table>
     </div>
-    
     <button class="add-purchase-btn" @click="openAddModal">
       <i class="plus-icon"></i>
       Add Purchase
     </button>
-    
-    <!-- Purchase Order Modal -->
+
+    <!-- Order Details/Status Modal -->
+    <BaseModal
+      :isOpen="isDetailModalOpen"
+      title="Purchase Order Details"
+      @close="closeDetailModal"
+    >
+      <div v-if="selectedOrder" class="order-details">
+        <div class="detail-header">
+          <div class="order-number">
+            Order #{{ selectedOrder.id }}
+          </div>
+          <div class="order-date">
+            <strong>Date:</strong> {{ formatDate(selectedOrder.order_date) }}
+          </div>
+        </div>
+        <div class="detail-section">
+          <h3>Order Description</h3>
+          <p>{{ selectedOrder.description }}</p>
+        </div>
+        <div class="detail-section">
+          <h3>Products</h3>
+          <div class="products-table">
+            <div class="products-header">
+              <div class="product-header-name">Product</div>
+              <div class="product-header-quantity">Quantity</div>
+              <div class="product-header-cost">Unit Cost</div>
+              <div class="product-header-total">Total</div>
+            </div>
+            <div v-for="(item, index) in selectedOrder.items" :key="index" class="product-row">
+              <div class="product-name">{{ item.product_name }}</div>
+              <div class="product-quantity">{{ item.quantity }}</div>
+              <div class="product-cost">{{ formatCurrency(item.unit_cost) }}</div>
+              <div class="product-total">{{ formatCurrency(item.subtotal) }}</div>
+            </div>
+          </div>
+          <div class="order-total">
+            <div class="total-label">Total Cost:</div>
+            <div class="total-value">{{ formatCurrency(selectedOrder.total_cost) }}</div>
+          </div>
+        </div>
+        <div class="detail-section status-section">
+          <h3>Status</h3>
+          <div class="status-info">
+            <div class="current-status">
+              <span>Current Status:</span>
+              <span 
+                class="status-badge" 
+                :class="statusClass(selectedOrder.status)"
+              >
+                {{ selectedOrder.status }}
+              </span>
+            </div>
+
+            <div v-if="selectedOrder.status === 'Delivering'" class="status-update">
+              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivered')">
+                Mark as Delivered
+              </button>
+            </div>
+          </div>
+          <div class="status-history">
+            <h4>Status History</h4>
+            <ul>
+              <li v-for="entry in selectedOrder.status_history" :key="entry.updated_at">
+                <strong>{{ entry.status }}</strong> at {{ formatDateTime(entry.updated_at) }}
+                <span v-if="entry.message"> — {{ entry.message }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <template v-slot:footer>
+        <button class="close-btn" @click="closeDetailModal">
+          Close
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Purchase Order Modal (Add/Edit) -->
     <BaseModal
       :isOpen="isModalOpen"
       :title="modalTitle"
       @close="closeModal"
     >
       <div class="purchase-form">
-        <div class="form-group">
-          <label for="orderDate">Order Date:</label>
-          <input 
-            id="orderDate" 
-            type="date" 
-            v-model="formData.orderDate" 
-            class="form-control"
-          />
-        </div>
-        
-        <div class="form-group">
-          <label for="supplier">Select Supplier:</label>
-          <select 
-            id="supplier" 
-            v-model="formData.supplierId" 
-            class="form-control"
-            @change="supplierChanged"
-          >
-          <option value="" disabled>Select Supplier</option>
-          <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-            {{ supplier.company_name }}
-          </option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Description:</label>
-          <input 
-            type="text" 
-            v-model="formData.description" 
-            class="form-control"
-            placeholder="Brief description of order"
-          />
-        </div>
-        
-        <div class="form-divider">Products</div>
-        
-        <div v-if="formData.supplierId" class="product-selection">
-          <div class="products-header">
-            <div class="product-header-name">Product</div>
-            <div class="product-header-quantity">Quantity</div>
-            <div class="product-header-cost">Cost</div>
-            <div class="product-header-action"></div>
+        <div>
+          <div class="form-group">
+            <label>Order Date</label>
+            <input type="date" v-model="formData.orderDate" :disabled="isEditing" />
           </div>
-          
-          <div v-for="(item, index) in formData.orderItems" :key="index" class="product-row">
-            <div class="product-name">
-              <select 
-                v-model="formData.orderItems[index].productId" 
-                class="form-control"
-                @change="productChanged(index)"
-              >
-              <option value="" disabled>Select Product</option>
-              <option 
-                v-for="product in supplierProducts" 
-                :key="product.id" 
-                :value="product.id"
-              >
-                  {{ product.name }}
-                </option>
-              </select>
-              <div v-if="supplierProducts.length === 0">
-                <p>No products available for the selected supplier.</p>
-              </div>
-            </div>
-            <div class="product-quantity">
-              <input 
-                type="number" 
-                min="1" 
-                v-model.number="item.quantity" 
-                class="form-control"
-                @input="updateItemTotal(index)"
-              />
-            </div>
-            <div class="product-cost">
-              {{ formatCurrency(item.total) }}
-            </div>
-            <div class="product-action">
-              <button 
-                v-if="formData.orderItems.length > 1" 
-                class="remove-item-btn"
-                @click="removeOrderItem(index)"
-                title="Remove item"
-              >
-                <i class="delete-icon"></i>
-              </button>
-            </div>
+          <div class="form-group">
+            <label>Supplier</label>
+            <select v-model="formData.supplierId" :disabled="isEditing" @change="supplierChanged">
+              <option value="" disabled>Select Supplier</option>
+              <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
+                {{ supplier.full_name }} ({{ supplier.company_name }})
+              </option>
+            </select>
           </div>
-          
-          <div class="add-product-row">
+          <div class="form-group">
+            <label>Description</label>
+            <textarea v-model="formData.description" placeholder="Description"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Order Items</label>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th class="product-col">Product</th>
+                  <th class="quantity-col">Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Subtotal</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in formData.orderItems" :key="idx">
+                  <td class="product-col">
+                    <select v-model="item.productId" @change="productChanged(idx)">
+                      <option value="" disabled>Select Product</option>
+                      <option v-for="prod in supplierProducts" :key="prod.id" :value="prod.id">
+                        {{ prod.name }}
+                      </option>
+                    </select>
+                  </td>
+                  <td class="quantity-col">
+                    <input type="number" min="1" v-model.number="item.quantity" @input="updateItemTotal(idx)" />
+                  </td>
+                  <td>
+                    {{ formatCurrency(item.cost) }}
+                  </td>
+                  <td>
+                    {{ formatCurrency(item.total) }}
+                  </td>
+                  <td>
+                    <button 
+                      v-if="formData.orderItems.length > 1" 
+                      class="remove-item-btn"
+                      @click="removeOrderItem(index)"
+                      title="Remove item"
+                    >
+                      <i class="delete-icon"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             <button class="add-item-btn" @click="addOrderItem">
               <i class="plus-icon"></i>
               Add Product
             </button>
           </div>
-          
-          <div class="order-total">
-            <div class="total-label">Total Cost:</div>
-            <div class="total-value">{{ formatCurrency(calculateTotalCost()) }}</div>
+          <div class="form-group total-cost">
+            <strong>Total Cost: {{ formatCurrency(calculateTotalCost()) }}</strong>
           </div>
         </div>
-        
-        <!-- Status field only shown when editing an existing order -->
-        <div v-if="formData.supplierId && isEditing" class="form-group">
-          <label for="status">Status:</label>
-          <select 
-            id="status" 
-            v-model="formData.status" 
-            class="form-control"
-          >
-            <option value="Pending">Pending</option>
-            <option value="Processing">Processing</option>
-            <option value="Delivered">Delivered</option>
-          </select>
-        </div>
-        
-        <!-- Show status info text when adding a new order -->
-        <div v-if="formData.supplierId && !isEditing" class="status-info">
-          <p>New orders will be created with status: <span class="status-pending">Pending</span></p>
-        </div>
       </div>
-      
       <template v-slot:footer>
         <button 
           class="submit-btn" 
@@ -237,8 +256,9 @@ export default {
   },
   data() {
     return {
-      searchQuery: '',
       isModalOpen: false,
+      isDetailModalOpen: false,
+      selectedOrder: null,
       isEditing: false,
       currentOrderId: null,
       orders: [],
@@ -248,11 +268,12 @@ export default {
         orderDate: "",
         supplierId: "",
         description: "",
-        status: "Pending", // Default status is always Pending
+        status: "Pending", 
         orderItems: [
           { productId: "", quantity: 1, cost: 0, total: 0 },
         ],
       },
+      searchQuery: "",
     };
   },
   computed: {
@@ -260,14 +281,13 @@ export default {
       if (!this.searchQuery) {
         return this.orders;
       }
-      
       const query = this.searchQuery.toLowerCase();
       return this.orders.filter(order => {
         return order.id.toString().includes(query) ||
-               order.supplier.toLowerCase().includes(query) ||
-               order.company.toLowerCase().includes(query) ||
-               order.description.toLowerCase().includes(query) ||
-               order.status.toLowerCase().includes(query);
+               (order.supplier_name && order.supplier_name.toLowerCase().includes(query)) ||
+               (order.company_name && order.company_name.toLowerCase().includes(query)) ||
+               (order.description && order.description.toLowerCase().includes(query)) ||
+               (order.status && order.status.toLowerCase().includes(query));
       });
     },
     modalTitle() {
@@ -277,7 +297,6 @@ export default {
       if (!this.formData.orderDate || !this.formData.supplierId || !this.formData.description) {
         return false;
       }
-      
       // Check if at least one item is selected and has quantity
       return this.formData.orderItems.some(
         (item) => item.productId && item.quantity > 0
@@ -310,7 +329,6 @@ export default {
         this.supplierProducts = [];
         return;
       }
-
       try {
         const response = await api.get(`/api/supplier-products/by-supplier/${this.formData.supplierId}`);
         this.supplierProducts = response.data.filter(
@@ -320,14 +338,35 @@ export default {
         console.error("Failed to fetch supplier products:", error);
       }
     },
+    async viewOrderDetails(order) {
+      try {
+        const response = await api.get(`/api/purchase-orders/${order.id}`);
+        this.selectedOrder = response.data;
+        this.isDetailModalOpen = true;
+      } catch (error) {
+        console.error('Failed to fetch order details:', error);
+      }
+    },
     formatDate(dateString) {
       if (!dateString) return "";
-
       const date = new Date(dateString);
       return date.toLocaleDateString();
     },
+    formatDateTime(dt) {
+      return new Date(dt).toLocaleString();
+    },
     formatCurrency(amount) {
       return `RM ${parseFloat(amount).toFixed(2)}`;
+    },
+    statusClass(status) {
+      return {
+        'status-delivered': status === 'Delivered',
+        'status-delivering': status === 'Delivering',
+        'status-processing': status === 'Processing',
+        'status-accepted': status === 'Accepted',
+        'status-declined': status === 'Declined',
+        'status-pending': status === 'Pending'
+      };
     },
     openAddModal() {
       this.isEditing = false;
@@ -336,13 +375,15 @@ export default {
       this.isModalOpen = true;
     },
     async editOrder(order) {
+      if (order.status !== "Pending") {
+        alert("You can only edit orders that are still pending.");
+        return;
+      }
       this.isEditing = true;
       this.currentOrderId = order.id;
-
       try {
         const response = await api.get(`/api/purchase-orders/${order.id}`);
         const orderData = response.data;
-
         this.formData = {
           orderDate: orderData.order_date,
           supplierId: orderData.supplier_id,
@@ -355,15 +396,30 @@ export default {
             total: item.subtotal,
           })),
         };
-
         await this.fetchSupplierProducts();
         this.isModalOpen = true;
       } catch (error) {
         console.error("Failed to fetch order details:", error);
       }
     },
+    async updateOrderStatus(orderId, newStatus) {
+      try {
+        await api.patch(`/api/purchase-orders/${orderId}/status`, {
+          status: newStatus
+        });
+        await this.viewOrderDetails({ id: orderId });
+        await this.fetchOrders();
+      } catch (error) {
+        console.error('Failed to update order status:', error);
+      }
+    },
     closeModal() {
       this.isModalOpen = false;
+      this.resetForm();
+    },
+    closeDetailModal() {
+      this.isDetailModalOpen = false;
+      this.selectedOrder = null;
     },
     resetForm() {
       const today = new Date();
@@ -371,7 +427,7 @@ export default {
         orderDate: today.toISOString().split("T")[0],
         supplierId: "",
         description: "",
-        status: "Pending", // Default status
+        status: "Pending",
         orderItems: [
           { productId: "", quantity: 1, cost: 0, total: 0 },
         ],
@@ -423,7 +479,6 @@ export default {
     },
     async submitForm() {
       if (!this.isFormValid) return;
-
       try {
         const orderData = {
           supplier_id: this.formData.supplierId,
@@ -437,7 +492,6 @@ export default {
             subtotal: item.total,
           })),
         };
-
         if (this.isEditing) {
           await api.put(
             `/api/purchase-orders/${this.currentOrderId}`,
@@ -446,7 +500,6 @@ export default {
         } else {
           await api.post("/api/purchase-orders", orderData);
         }
-
         this.fetchOrders();
         this.closeModal();
       } catch (error) {
@@ -457,22 +510,22 @@ export default {
       if (confirm('Are you sure you want to delete this order?')) {
         try {
           await api.delete(`/api/purchase-orders/${orderId}`);
-          this.fetchOrders(); // Refresh the orders list
+          this.fetchOrders();
         } catch (error) {
           console.error('Failed to delete order:', error);
         }
       }
     },
   },
-  
 };
 </script>
 
 <style scoped>
 .purchase-order-container {
-  padding: 20px;
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
 }
 
 h1 {
@@ -553,7 +606,7 @@ table {
 }
 
 th, td {
-  padding: 12px 16px;
+  padding: 16px;
   text-align: left;
   border-bottom: 1px solid #edf2f7;
 }
@@ -570,8 +623,55 @@ td {
   font-size: 14px;
 }
 
+.order-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.order-row:hover {
+  background-color: #f7fafc;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-delivered {
+  background-color: #e6fffa;
+  color: #047857;
+}
+
+.status-delivering {
+  background-color: #edf7fd;
+  color: #0ea5e9;
+}
+
+.status-processing {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-accepted {
+  background-color: #e0f2fe;
+  color: #0284c7;
+}
+
+.status-declined {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-pending {
+  background-color: #fff7ed;
+  color: #c2410c;
+}
+
 .action-cell {
-  width: 100px;
+  width: 120px;
   text-align: center;
 }
 
@@ -579,19 +679,6 @@ td {
   display: flex;
   justify-content: center;
   gap: 8px;
-}
-
-.edit-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
 .edit-btn, .delete-btn {
@@ -607,28 +694,36 @@ td {
   transition: background-color 0.2s;
 }
 
-.edit-btn:hover {
+.edit-btn:disabled {
+  background-color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.edit-btn:hover:not(:disabled) {
   background-color: #edf2f7;
 }
 
 .delete-btn:hover {
-  background-color: #fed7d7;
+  background-color: #fee2e2;
+}
+
+.edit-icon, .delete-icon, .plus-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 .edit-icon {
-  width: 16px;
-  height: 16px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a5568'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
 }
-
 .delete-icon {
-  width: 16px;
-  height: 16px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23e53e3e'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
+}
+.plus-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6v6m0 0v6m0-6h6m-6 0H6' /%3E%3C/svg%3E");
+  margin-right: 8px;
 }
 
 .add-purchase-btn {
@@ -650,82 +745,78 @@ td {
   background-color: #0052a3;
 }
 
-.plus-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6v6m0 0v6m0-6h6m-6 0H6' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
+.BaseModal .modal-content,
+.base-modal .modal-content {
+  background: #fff;
+  border-radius: 10px;
+  padding: 32px 28px 24px 28px;
+  max-width: 600px;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-delivered {
-  background-color: #e6fffa;
-  color: #047857;
-}
-
-.status-delivering {
-  background-color: #fcf3fe;
-  color: #9333ea;
-}
-
-.status-processing {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-}
-
-.status-pending {
-  background-color: #fff7ed;
-  color: #c2410c;
-}
-
-/* Form Styles */
-.purchase-form {
-  width: 100%;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 14px;
-  color: #4a5568;
-  margin-bottom: 6px;
-}
-
-.form-control {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.form-divider {
-  font-weight: 500;
-  color: #4a5568;
-  margin: 20px 0 16px;
-  padding-bottom: 8px;
+.BaseModal .modal-header,
+.base-modal .modal-header {
   border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
 }
 
-.product-selection {
+.BaseModal .modal-title,
+.base-modal .modal-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.BaseModal .modal-footer,
+.base-modal .modal-footer {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 18px;
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.order-details {
+  padding: 8px 0;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
   margin-bottom: 20px;
+}
+
+.order-number {
+  font-size: 18px;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a5568;
+  margin-bottom: 12px;
+}
+
+.products-table {
+  margin-bottom: 16px;
 }
 
 .products-header {
   display: flex;
-  margin-bottom: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
   font-weight: 500;
   font-size: 14px;
   color: #4a5568;
@@ -733,65 +824,14 @@ td {
 
 .product-row {
   display: flex;
-  margin-bottom: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #edf2f7;
 }
 
-.product-header-name, .product-name {
-  flex: 3;
-  padding-right: 8px;
-}
-
-.product-header-quantity, .product-quantity {
-  flex: 1;
-  padding-right: 8px;
-}
-
-.product-header-cost, .product-cost {
-  flex: 1;
-  padding-right: 8px;
-}
-
-.product-header-action, .product-action {
-  width: 40px;
-  display: flex;
-  justify-content: center;
-}
-
-.add-product-row {
-  margin-top: 12px;
-}
-
-.add-item-btn {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background-color: #edf2f7;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #4a5568;
-  cursor: pointer;
-}
-
-.add-item-btn:hover {
-  background-color: #e2e8f0;
-}
-
-.remove-item-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.remove-item-btn:hover {
-  background-color: #fed7d7;
-}
+.product-header-name, .product-name { flex: 2; }
+.product-header-quantity, .product-quantity { flex: 1; text-align: center; }
+.product-header-cost, .product-cost { flex: 1; text-align: right; }
+.product-header-total, .product-total { flex: 1; text-align: right; }
 
 .order-total {
   display: flex;
@@ -811,6 +851,151 @@ td {
   font-weight: 500;
   font-size: 18px;
   color: #4a5568;
+}
+
+.status-section {
+  padding: 16px;
+  background-color: #f7fafc;
+  border-radius: 6px;
+}
+
+.status-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.current-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-history h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.status-history ul {
+  padding-left: 18px;
+}
+
+.status-history li {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.purchase-form {
+  width: 100%;
+}
+
+.purchase-form .form-group label {
+  font-weight: 500;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+
+.purchase-form input[type="date"],
+.purchase-form select,
+.purchase-form textarea {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-top: 3px;
+  margin-bottom: 8px;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.purchase-form textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.purchase-form .items-table th,
+.purchase-form .items-table td {
+  font-size: 13px;
+  padding: 7px 8px;
+}
+
+.purchase-form .items-table th {
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.purchase-form .items-table td {
+  background: #fff;
+}
+
+.purchase-form .items-table select,
+.purchase-form .items-table input {
+  width: 100%;
+  padding: 5px;
+  font-size: 13px;
+}
+
+.purchase-form .add-item-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #edf2f7;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+.purchase-form .add-item-btn:hover {
+  background-color: #e2e8f0;
+}
+
+.purchase-form .remove-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.purchase-form .remove-item-btn:hover {
+  background-color: #fed7d7;
+}
+
+.purchase-form .total-cost {
+  text-align: right;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+.purchase-form .items-table .product-col {
+  width: 38%;
+  min-width: 180px;
+}
+
+.purchase-form .items-table .quantity-col {
+  width: 12%;
+  min-width: 60px;
+  max-width: 80px;
+}
+
+.submit-btn, .close-btn, .accept-btn {
+  min-width: 110px;
+  padding: 10px 0;
+  margin-left: 8px;
 }
 
 .submit-btn {
@@ -833,18 +1018,34 @@ td {
   cursor: not-allowed;
 }
 
-/* New status info styling */
-.status-info {
-  margin-top: 16px;
-  padding: 10px;
-  background-color: #f7fafc;
+.accept-btn {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
   border-radius: 4px;
-  border-left: 4px solid #3182ce;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background-color 0.2s;
 }
 
-.status-info p {
-  margin: 0;
-  font-size: 14px;
+.accept-btn:hover {
+  background-color: #047857;
+}
+
+.close-btn {
+  padding: 10px 24px;
+  background-color: #e2e8f0;
   color: #4a5568;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #cbd5e0;
 }
 </style>

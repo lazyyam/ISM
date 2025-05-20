@@ -4,6 +4,7 @@ from database import get_db
 from utils.auth_dependencies import get_current_user
 from models.purchase_orders_models import PurchaseOrder
 from models.purchase_order_items_models import PurchaseOrderItem
+from models.purchase_order_status_history_models import PurchaseOrderStatusHistory
 from schemas.purchase_order_schemas import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderStatusUpdate
 from typing import List
 
@@ -191,7 +192,8 @@ def get_orders_by_supplier(
 @purchase_order_router.get("/{order_id}", response_model=PurchaseOrderRead)
 def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(PurchaseOrder).options(
-        joinedload(PurchaseOrder.items).joinedload(PurchaseOrderItem.supplier_product)
+        joinedload(PurchaseOrder.items).joinedload(PurchaseOrderItem.supplier_product),
+        joinedload(PurchaseOrder.status_history)
     ).filter(PurchaseOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
@@ -215,6 +217,10 @@ def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
             }
             for item in order.items
         ],
+        "status_history": [
+            {"status": h.status, "updated_at": h.updated_at, "message": h.message}
+            for h in order.status_history
+        ],
     }
 
 
@@ -226,6 +232,12 @@ def update_purchase_order_status(order_id: int, status_update: PurchaseOrderStat
         raise HTTPException(status_code=404, detail="Purchase Order not found")
 
     order.status = status_update.status
+    db.add(PurchaseOrderStatusHistory(
+        purchase_order_id=order.id,
+        status=status_update.status,
+        message=status_update.message
+    ))
+
     db.commit()
     db.refresh(order)
     return {
@@ -246,6 +258,10 @@ def update_purchase_order_status(order_id: int, status_update: PurchaseOrderStat
                 "subtotal": item.subtotal,
             }
             for item in order.items
+        ],
+        "status_history": [
+            {"status": h.status, "updated_at": h.updated_at, "message": h.message}
+            for h in order.status_history
         ],
     }
 

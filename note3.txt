@@ -5,6 +5,34 @@ Notification system – Alert manager when supplier accepts/declines.
 
 dashboad show notifcation
 
-Show Accept and Decline buttons when status is Pending
-Only allow Mark as Processing once status is Accepted.
-Disable further status updates if status is Declined.
+
+
+Pending		System		Newly created, awaiting supplier action
+Accepted	Supplier	Supplier agrees to fulfill the order
+Declined	Supplier	Supplier cannot or will not fulfill the order
+Processing	Supplier	Work on the order has begun
+Delivering	Supplier	Order has been shipped/delivering
+Delivered	Manager		Order has been received and confirmed
+
+
+Workflow Enhancements
+Add "Accepted" status – Explicit confirmation step before "Processing".
+
+Add "Declined Reason" field – Capture supplier’s reason for rejecting.
+
+Add timestamps – Track when each status was updated.
+
+Add "Delivering" status – Show that shipment is on the way.
+
+Disable buttons conditionally – Based on current status to prevent invalid transitions.
+
+📦 UX Improvements
+Status history log – View past status changes for transparency.
+
+Visual timeline/progress bar – Clearly show the PO journey.
+
+Filter by status – Quickly find POs by current status.
+
+Notification system – Alert manager when supplier accepts/declines.
+
+Role-based status control – Supplier can’t mark as Delivered; only Manager can.

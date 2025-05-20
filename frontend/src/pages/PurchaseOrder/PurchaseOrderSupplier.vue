@@ -45,12 +45,7 @@
             <td>
               <span 
                 class="status-badge" 
-                :class="{ 
-                  'status-delivered': order.status === 'Delivered',
-                  'status-delivering': order.status === 'Delivering',
-                  'status-processing': order.status === 'Processing',
-                  'status-pending': order.status === 'Pending'
-                }"
+                :class="statusClass(order.status)"
               >
                 {{ order.status }}
               </span>
@@ -61,7 +56,7 @@
     </div>
     
     <BaseModal
-      :isOpen="isModalOpen"
+      :isOpen="isDetailModalOpen"
       title="Purchase Order Details"
       @close="closeModal"
     >
@@ -111,34 +106,46 @@
               <span>Current Status:</span>
               <span 
                 class="status-badge" 
-                :class="{ 
-                  'status-delivered': selectedOrder.status === 'Delivered',
-                  'status-delivering': selectedOrder.status === 'Delivering',
-                  'status-processing': selectedOrder.status === 'Processing',
-                  'status-pending': selectedOrder.status === 'Pending'
-                }"
+                :class="statusClass(selectedOrder.status)"
               >
                 {{ selectedOrder.status }}
               </span>
             </div>
             
             <div v-if="selectedOrder.status === 'Pending'" class="status-update">
-              <button 
-                class="update-status-btn" 
-                @click="updateOrderStatus(selectedOrder.id, 'Processing')"
-              >
+              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Accepted')">
+                Accept Order
+              </button>
+              <button class="decline-btn" @click="showDecline = true">
+                Decline Order
+              </button>
+              <div v-if="showDecline" class="decline-reason-box">
+                <textarea v-model="declineMessage" placeholder="Enter reason for declining"></textarea>
+                <div class="decline-actions">
+                  <button class="decline-btn" @click="declineOrder(selectedOrder.id)">Submit Decline</button>
+                  <button class="cancel-btn" @click="cancelDecline">Cancel</button>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="selectedOrder.status === 'Accepted'" class="status-update">
+              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Processing')">
                 Mark as Processing
               </button>
             </div>
-            
             <div v-else-if="selectedOrder.status === 'Processing'" class="status-update">
-              <button 
-                class="update-status-btn" 
-                @click="updateOrderStatus(selectedOrder.id, 'Delivering')"
-              >
+              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivering')">
                 Mark as Delivering
               </button>
             </div>
+          </div>
+          <div class="status-history">
+            <h4>Status History</h4>
+            <ul>
+              <li v-for="entry in selectedOrder.status_history" :key="entry.updated_at">
+                <strong>{{ entry.status }}</strong> at {{ formatDateTime(entry.updated_at) }}
+                <span v-if="entry.message"> — {{ entry.message }}</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -165,9 +172,11 @@ export default {
     return {
       searchQuery: '',
       orders: [],
-      isModalOpen: false,
+      isDetailModalOpen: false,
       selectedOrder: null,
-      orderItems: []
+      orderItems: [],
+      showDecline: false,
+      declineMessage: ""
     };
   },
   computed: {
@@ -198,49 +207,83 @@ export default {
     },
     formatDate(dateString) {
       if (!dateString) return "";
-
       const date = new Date(dateString);
       return date.toLocaleDateString();
+    },
+    formatDateTime(dt) {
+      return new Date(dt).toLocaleString();
     },
     formatCurrency(amount) {
       return `RM ${parseFloat(amount).toFixed(2)}`;
     },
     async viewOrderDetails(order) {
       this.selectedOrder = order;
+      this.showDecline = false;
+      this.declineMessage = "";
       try {
         const response = await api.get(`/api/purchase-orders/${order.id}`);
         const orderData = response.data;
         this.orderItems = orderData.items || [];
-        this.isModalOpen = true;
+        // Merge status history and other details
+        this.selectedOrder.status_history = orderData.status_history || [];
+        this.selectedOrder.status = orderData.status;
+        this.selectedOrder.total_cost = orderData.total_cost;
+        this.selectedOrder.description = orderData.description;
+        this.selectedOrder.order_date = orderData.order_date;
+        this.isDetailModalOpen = true;
       } catch (error) {
         console.error('Failed to fetch order details:', error);
       }
     },
     closeModal() {
-      this.isModalOpen = false;
+      this.isDetailModalOpen = false;
       this.selectedOrder = null;
       this.orderItems = [];
+      this.showDecline = false;
+      this.declineMessage = "";
     },
     async updateOrderStatus(orderId, newStatus) {
       try {
         await api.patch(`/api/purchase-orders/${orderId}/status`, {
           status: newStatus
         });
-        
-        // Update local state
-        if (this.selectedOrder) {
-          this.selectedOrder.status = newStatus;
-        }
-        
-        // Update in orders list
-        const orderIndex = this.orders.findIndex(order => order.id === orderId);
-        if (orderIndex !== -1) {
-          this.orders[orderIndex].status = newStatus;
-        }
-        
+        await this.viewOrderDetails({ id: orderId });
+        await this.fetchOrders();
       } catch (error) {
         console.error('Failed to update order status:', error);
       }
+    },
+    async declineOrder(orderId) {
+      if (!this.declineMessage.trim()) {
+        alert("Please enter a reason for declining.");
+        return;
+      }
+      try {
+        await api.patch(`/api/purchase-orders/${orderId}/status`, {
+          status: "Declined",
+          message: this.declineMessage
+        });
+        this.showDecline = false;
+        this.declineMessage = "";
+        await this.viewOrderDetails({ id: orderId });
+        await this.fetchOrders();
+      } catch (error) {
+        console.error('Failed to decline order:', error);
+      }
+    },
+    cancelDecline() {
+      this.showDecline = false;
+      this.declineMessage = "";
+    },
+    statusClass(status) {
+      return {
+        'status-delivered': status === 'Delivered',
+        'status-delivering': status === 'Delivering',
+        'status-processing': status === 'Processing',
+        'status-accepted': status === 'Accepted',
+        'status-declined': status === 'Declined',
+        'status-pending': status === 'Pending'
+      };
     }
   }
 };
@@ -371,13 +414,23 @@ td {
 }
 
 .status-delivering {
-  background-color: #fcf3fe;
-  color: #9333ea;
+  background-color: #edf7fd;
+  color: #0ea5e9;
 }
 
 .status-processing {
   background-color: #eff6ff;
   color: #1d4ed8;
+}
+
+.status-accepted {
+  background-color: #e0f2fe;
+  color: #0284c7;
+}
+
+.status-declined {
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
 .status-pending {
@@ -434,16 +487,10 @@ td {
   border-bottom: 1px solid #edf2f7;
 }
 
-.product-header-name, .product-name {
-  flex: 3;
-}
-
-.product-header-quantity, .product-quantity,
-.product-header-cost, .product-cost,
-.product-header-total, .product-total {
-  flex: 1;
-  text-align: right;
-}
+.product-header-name, .product-name { flex: 2; }
+.product-header-quantity, .product-quantity { flex: 1; text-align: center; }
+.product-header-cost, .product-cost { flex: 1; text-align: right; }
+.product-header-total, .product-total { flex: 1; text-align: right; }
 
 .order-total {
   display: flex;
@@ -483,6 +530,21 @@ td {
   gap: 10px;
 }
 
+.status-history h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.status-history ul {
+  padding-left: 18px;
+}
+
+.status-history li {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
 .update-status-btn {
   padding: 8px 16px;
   background-color: #0066cc;
@@ -512,4 +574,69 @@ td {
 .close-btn:hover {
   background-color: #cbd5e0;
 }
+
+.accept-btn {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background-color 0.2s;
+}
+
+.accept-btn:hover {
+  background-color: #047857;
+}
+
+.decline-btn {
+  padding: 8px 16px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background-color 0.2s;
+}
+.decline-btn:hover {
+  background-color: #b91c1c;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background-color: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.cancel-btn:hover {
+  background-color: #cbd5e0;
+}
+
+.decline-reason-box {
+  margin-top: 12px;
+}
+.decline-reason-box textarea {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+
+.decline-actions {
+  display: flex;
+  gap: 8px;
+}
+
 </style>
