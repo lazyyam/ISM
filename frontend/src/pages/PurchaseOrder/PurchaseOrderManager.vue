@@ -210,7 +210,16 @@
                     </select>
                   </td>
                   <td class="quantity-col">
-                    <input type="number" min="1" v-model.number="item.quantity" @input="updateItemTotal(idx)" />
+                    <input
+                      type="number"
+                      min="1"
+                      :max="getProductMaxQuantity(item.productId)"
+                      v-model.number="item.quantity"
+                      @input="updateItemTotal(idx)"
+                    />
+                    <span v-if="getProductMaxQuantity(item.productId)" class="available-qty">
+                      / {{ getProductMaxQuantity(item.productId) }} available
+                    </span>
                   </td>
                   <td>
                     {{ formatCurrency(item.cost) }}
@@ -276,6 +285,7 @@ export default {
       orders: [],
       suppliers: [],
       supplierProducts: [],
+      productMappings: [],
       formData: {
         orderDate: "",
         supplierId: "",
@@ -343,11 +353,26 @@ export default {
       }
       try {
         const response = await api.get(`/api/supplier-products/by-supplier/${this.formData.supplierId}`);
+        const mappedSupplierProductIds = this.productMappings.map(m => m.supplier_product_id);
         this.supplierProducts = response.data.filter(
-          (product) => product.supplier_id === parseInt(this.formData.supplierId)
+          (product) => mappedSupplierProductIds.includes(product.id)
         );
       } catch (error) {
-        console.error("Failed to fetch supplier products:", error);
+        this.supplierProducts = [];
+      }
+    },
+    async fetchProductMappings() {
+      if (!this.formData.supplierId) {
+        this.productMappings = [];
+        return;
+      }
+      try {
+        const response = await api.get("/api/product-mappings");
+        this.productMappings = response.data.filter(
+          m => m.supplier_id == this.formData.supplierId
+        );
+      } catch (error) {
+        this.productMappings = [];
       }
     },
     async viewOrderDetails(order) {
@@ -447,6 +472,7 @@ export default {
       this.supplierProducts = [];
     },
     async supplierChanged() {
+      await this.fetchProductMappings();
       await this.fetchSupplierProducts();
       this.formData.orderItems = [
         { productId: "", quantity: 1, cost: 0, total: 0 },
@@ -489,8 +515,19 @@ export default {
         return total + (item.total || 0);
       }, 0);
     },
+    getProductMaxQuantity(productId) {
+      const prod = this.supplierProducts.find(p => p.id === productId);
+      return prod ? prod.quantity_available : 1;
+    },
     async submitForm() {
       if (!this.isFormValid) return;
+      for (const item of this.formData.orderItems) {
+        const prod = this.supplierProducts.find(p => p.id === item.productId);
+        if (prod && item.quantity > prod.quantity_available) {
+          alert(`Cannot order more than available quantity for ${prod.name}`);
+          return;
+        }
+      }
       try {
         const orderData = {
           supplier_id: this.formData.supplierId,

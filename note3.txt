@@ -1,4 +1,3 @@
-max quantity at manager side @@@@@@@@@@@@@@@@@@@@@@@@
 which step minus the stock and add stock
 Notification system – Alert manager when supplier accepts/declines.
 
