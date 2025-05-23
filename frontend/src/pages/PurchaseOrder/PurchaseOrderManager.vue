@@ -71,10 +71,19 @@
         </tbody>
       </table>
     </div>
-    <button class="add-purchase-btn" @click="openAddModal">
-      <i class="plus-icon"></i>
-      Add Purchase
-    </button>
+    <div class="bottom-buttons">
+      <button class="mapping-btn" @click="showMappingModal = true">
+        Product Mapping
+      </button>
+      <button class="add-purchase-btn" @click="openAddModal">
+        <i class="plus-icon"></i>
+        Add Purchase
+      </button>
+    </div>
+    <MappingModal
+      :isOpen="showMappingModal"
+      @close="showMappingModal = false"
+    />
 
     <!-- Order Details/Status Modal -->
     <BaseModal
@@ -247,12 +256,14 @@
 
 <script>
 import BaseModal from "@/components/BaseModal.vue";
+import MappingModal from "@/components/MappingModal.vue";
 import api from "@/services/api";
 
 export default {
   name: 'PurchaseOrderManager',
   components: {
-    BaseModal
+    BaseModal,
+    MappingModal
   },
   data() {
     return {
@@ -260,6 +271,7 @@ export default {
       isDetailModalOpen: false,
       selectedOrder: null,
       isEditing: false,
+      showMappingModal: false,
       currentOrderId: null,
       orders: [],
       suppliers: [],
@@ -724,6 +736,31 @@ td {
 .plus-icon {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6v6m0 0v6m0-6h6m-6 0H6' /%3E%3C/svg%3E");
   margin-right: 8px;
+}
+
+.bottom-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.mapping-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mapping-btn:hover {
+  background-color: #0052a3;
 }
 
 .add-purchase-btn {

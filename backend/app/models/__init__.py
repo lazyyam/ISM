@@ -6,3 +6,4 @@ from .supplier_product_models import SupplierProduct
 from .purchase_orders_models import PurchaseOrder
 from .purchase_order_items_models import PurchaseOrderItem
 from .purchase_order_status_history_models import PurchaseOrderStatusHistory
+from .product_mapping_models import ProductMapping
