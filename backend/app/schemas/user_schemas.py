@@ -28,7 +28,7 @@ class UserResponse(BaseModel):
     company_address: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserLogin(BaseModel):
     email: str

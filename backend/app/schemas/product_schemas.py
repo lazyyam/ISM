@@ -23,7 +23,7 @@ class ProductBatchRead(ProductBatchBase):
     batch_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 #INVENTORY
@@ -46,7 +46,7 @@ class InventoryRead(InventoryBase):
     batch: Optional[ProductBatchRead] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 #PRODUCT
@@ -75,4 +75,4 @@ class ProductRead(ProductBase):
     inventory: Optional[List[InventoryRead]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True

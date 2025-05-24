@@ -18,7 +18,7 @@ class PurchaseOrderItemBase(BaseModel):
     subtotal: float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PurchaseOrderItemCreate(PurchaseOrderItemBase):
     pass
@@ -28,7 +28,7 @@ class PurchaseOrderItemRead(PurchaseOrderItemBase):
     product_name: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 #PURCHASE_ORDER
@@ -51,7 +51,7 @@ class PurchaseOrderRead(PurchaseOrderBase):
     status_history: Optional[List[StatusHistoryEntry]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PurchaseOrderStatusUpdate(BaseModel):
     status: str

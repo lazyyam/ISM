@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, DECIMAL, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime, timezone
+from datetime import datetime
+from utils.timezone_config import MALAYSIA_TIMEZONE
 
 class SupplierProduct(Base):
     __tablename__ = "supplier_products"
@@ -13,7 +14,7 @@ class SupplierProduct(Base):
     code = Column(String(50), unique=True, index=True, nullable=False)
     cost = Column(DECIMAL(10, 2), nullable=False)
     quantity_available = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(MALAYSIA_TIMEZONE))
 
     supplier = relationship("User", back_populates="supplier_products")
     order_items = relationship("PurchaseOrderItem", back_populates="supplier_product")

@@ -5,8 +5,13 @@ from utils.auth_dependencies import get_current_user
 from models.purchase_orders_models import PurchaseOrder
 from models.purchase_order_items_models import PurchaseOrderItem
 from models.purchase_order_status_history_models import PurchaseOrderStatusHistory
+from models.product_mapping_models import ProductMapping
+from models.supplier_product_models import SupplierProduct
+from models.product_batch_models import ProductBatch
+from models.inventory_models import Inventory, TransactionTypeEnum
 from schemas.purchase_order_schemas import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderStatusUpdate
 from typing import List
+from datetime import date
 
 purchase_order_router = APIRouter()
 
@@ -230,6 +235,41 @@ def update_purchase_order_status(order_id: int, status_update: PurchaseOrderStat
     order = db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
+    
+    # Deduct supplier's product quantity when status set to processing
+    if status_update.status == "Processing" and order.status != "Processing":
+        for item in order.items:
+            supplier_product = db.query(SupplierProduct).filter(SupplierProduct.id == item.supplier_product_id).first()
+            if supplier_product:
+                if supplier_product.quantity_available < item.quantity:
+                    raise HTTPException(status_code=400, detail=f"Not enough quantity for {supplier_product.name}")
+                supplier_product.quantity_available -= item.quantity
+                db.add(supplier_product)
+
+    # Update manager's product quantity when status set to delvired
+    if status_update.status == "Delivered" and order.status != "Delivered":
+        for item in order.items:
+            mapping = db.query(ProductMapping).filter(
+                ProductMapping.supplier_product_id == item.supplier_product_id,
+                ProductMapping.supplier_id == order.supplier_id
+            ).first()
+            if mapping:
+                # Use today's date as a placeholder for expiry_date
+                new_batch = ProductBatch(
+                    product_id=mapping.product_id,
+                    quantity=item.quantity,
+                    expiry_date=date.today(),  # Placeholder
+                    received_date=date.today()
+                )
+                db.add(new_batch)
+                db.flush()
+                inventory_entry = Inventory(
+                    product_id=mapping.product_id,
+                    change_amount=item.quantity,
+                    transaction_type=TransactionTypeEnum.restock,
+                    batch_id=new_batch.batch_id
+                )
+                db.add(inventory_entry)
 
     order.status = status_update.status
     db.add(PurchaseOrderStatusHistory(
