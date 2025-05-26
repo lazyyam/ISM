@@ -124,3 +124,4 @@ html, body {
 <!--npm install axios-->
 <!--npm install jwt-decode-->
 <!--npm install chart.js-->
+<!--npm install html2pdf.js-->

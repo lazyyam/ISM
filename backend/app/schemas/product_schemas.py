@@ -30,6 +30,9 @@ class ProductBatchRead(ProductBatchBase):
 class TransactionTypeEnum(str, Enum):
     sale = "sale"
     restock = "restock"
+    manual_add = "manual_add"
+    adjustment = "adjustment"
+
 
 class InventoryBase(BaseModel):
     product_id: int

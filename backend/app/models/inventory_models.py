@@ -6,6 +6,8 @@ import enum
 class TransactionTypeEnum(enum.Enum):
     sale = "sale"
     restock = "restock"
+    manual_add = "manual_add"
+    adjustment = "adjustment"
 
 class Inventory(Base):
     __tablename__ = "inventory"

@@ -57,8 +57,15 @@
                     <i :class="['chevron-icon', expandedProductId === product.id ? 'chevron-up' : 'chevron-down']"></i>
                   </button>
                 </td>
-                <td class="action-cell">
+                <td class="action-cell">               
                   <div class="action-buttons">
+                    <button 
+                      class="sell-btn"
+                      @click="openSellProductModal(product)"
+                      title="Sell product"
+                    >
+                      <i class="sell-icon"></i>
+                    </button>
                     <button 
                       class="edit-btn" 
                       @click="openEditModal(product)"
@@ -101,10 +108,6 @@
                           <div class="batch-column batch-expiry">{{ formatDate(batch.expiry_date) }}</div>
                           <div class="batch-column batch-received">{{ formatDate(batch.received_date) }}</div>
                           <div class="batch-column batch-actions">
-                            <button class="batch-sell-btn" @click="openSellBatchModal(product.id, batch)">
-                              <i class="sell-icon"></i>
-                              Sell
-                            </button>
                             <button class="batch-edit-btn" @click="openBatchEditModal(product.id, batch)">
                               <i class="edit-icon"></i>
                             </button>
@@ -132,6 +135,11 @@
             <td colspan="7" style="text-align: center;">No products found.</td>
           </tr>
         </table>
+        <SalesModal
+          v-if="isSalesModalOpen"
+          :product="salesProduct"
+          @close="closeSalesModal"
+        />
       </div>
       
       <button class="add-product-btn" @click="openAddModal">
@@ -325,12 +333,14 @@
   
   <script>
   import BaseModal from '@/components/BaseModal.vue';
+  import SalesModal from '@/components/SalesModal.vue';
   import api from "@/services/api";
   
   export default {
     name: 'ProductPage',
     components: {
-      BaseModal
+      BaseModal,
+      SalesModal
     },
     data() {
       return {
@@ -340,6 +350,8 @@
         isSellModalOpen: false,
         isEditing: false,
         isEditingBatch: false,
+        isSalesModalOpen: false,
+        salesProduct: null,
         expandedProductId: null,
         currentProductId: null,
         currentBatchId: null,
@@ -483,23 +495,14 @@
         this.isBatchModalOpen = false;
         setTimeout(this.resetBatchForm, 300);
       },
-      openSellBatchModal(product_id, batch) {
-        this.resetSellForm();
-        this.sellFormData.product_id = product_id;
-        this.sellFormData.batch_id = batch.batch_id;
-        this.sellFormData.maxQuantity = batch.quantity;
-        
-        // Get the product info for default price
-        const product = this.products.find(p => p.id === product_id);
-        if (product) {
-          this.sellFormData.price = product.retail_price;
-        }
-        
-        // Set default sell date to today
-        const today = new Date();
-        this.sellFormData.sell_date = today.toISOString().split('T')[0];
-        
-        this.isSellModalOpen = true;
+      openSellProductModal(product) {
+        this.salesProduct = product;
+        this.isSalesModalOpen = true;
+      },
+      closeSalesModal() {
+        this.isSalesModalOpen = false;
+        this.salesProduct = null;
+        this.fetchProducts(); 
       },
       closeSellModal() {
         this.isSellModalOpen = false;
@@ -787,7 +790,6 @@
   .sell-icon {
     width: 16px;
     height: 16px;
-    margin-right: 4px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a5568'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' /%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
@@ -946,25 +948,6 @@
   cursor: pointer;
 }
 
-.batch-sell-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  height: 28px;
-  background-color: #38a169;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.batch-sell-btn:hover {
-  background-color: #2f855a;
-}
-
 .batch-edit-btn:hover {
   background-color: #edf2f7;
 }
@@ -1001,5 +984,22 @@
   text-align: center;
   color: #718096;
   font-style: italic;
+}
+
+.sell-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #38a169;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.sell-btn:hover {
+  background-color: #2f855a;
 }
 </style>
