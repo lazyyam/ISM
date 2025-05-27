@@ -3,11 +3,11 @@
       <h1>Inventory Analysis</h1>
       
       <!-- Chart Section -->
-      <div class="chart-section">
+      <!-- <div class="chart-section">
         <div class="chart-container">
           <canvas id="inventoryChart" ref="chartCanvas"></canvas>
         </div>
-      </div>
+      </div> -->
       
       <!-- Product Performance Section -->
       <div class="performance-section">

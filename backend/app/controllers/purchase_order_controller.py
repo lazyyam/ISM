@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from utils.auth_dependencies import get_current_user
@@ -11,7 +11,8 @@ from models.product_batch_models import ProductBatch
 from models.inventory_models import Inventory, TransactionTypeEnum
 from schemas.purchase_order_schemas import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderStatusUpdate
 from typing import List
-from datetime import date
+from datetime import date, datetime
+import os
 
 purchase_order_router = APIRouter()
 
@@ -177,6 +178,8 @@ def get_orders_by_supplier(
             "description": order.description,
             "status": order.status,
             "total_cost": order.total_cost,
+            "payment_receipt_url": order.payment_receipt_url, 
+            "payment_date": order.payment_date,
             "items": [
                 {
                     "id": item.id,
@@ -211,6 +214,8 @@ def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
         "description": order.description,
         "status": order.status,
         "total_cost": order.total_cost,
+        "payment_receipt_url": order.payment_receipt_url,
+        "payment_date": order.payment_date,
         "items": [
             {
                 "id": item.id,
@@ -305,3 +310,30 @@ def update_purchase_order_status(order_id: int, status_update: PurchaseOrderStat
         ],
     }
 
+@purchase_order_router.post("/{order_id}/payment")
+def upload_payment_receipt(order_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    order = db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Purchase Order not found")
+
+    # Validate file type
+    allowed_types = ["application/pdf", "image/jpeg", "image/png"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Only PDF or image files are allowed.")
+
+    # Save file
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"receipt_order_{order_id}_{int(datetime.now().timestamp())}{ext}"
+    upload_dir = "uploads/payment_receipts"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, filename)
+    with open(file_path, "wb") as f:
+        f.write(file.file.read())
+
+    # Update order
+    order.payment_receipt_url = file_path
+    order.payment_date = datetime.now()
+    order.status = "Paid"
+    db.commit()
+    db.refresh(order)
+    return {"detail": "Payment receipt uploaded", "payment_receipt_url": file_path}

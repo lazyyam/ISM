@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, Date, String, DECIMAL, Text
+from sqlalchemy import Column, DateTime, Integer, ForeignKey, Date, String, DECIMAL, Text
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -13,6 +13,8 @@ class PurchaseOrder(Base):
     status = Column(String(50), default="pending")
     total_cost = Column(DECIMAL(10, 2), default=0.00)
     description = Column(Text, nullable=True)
+    payment_receipt_url = Column(String(255), nullable=True)
+    payment_date = Column(DateTime, nullable=True)
 
     supplier = relationship("User", back_populates="purchase_orders")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order", cascade="all, delete-orphan")

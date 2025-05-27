@@ -85,10 +85,10 @@
         localStorage.setItem("role", decoded.role);
 
         if (decoded.role === "manager") {
-          this.$router.replace("/dashboard-manager");
+          this.$router.replace("/inventory-analysis");
           window.location.reload();
         } else if (decoded.role === "supplier") {
-          this.$router.replace("/dashboard-supplier");
+          this.$router.replace("/manage-account");
           window.location.reload();
         } else {
           this.$router.push("/login");

@@ -54,6 +54,35 @@
         </tbody>
       </table>
     </div>
+    <button class="update-bank-btn" @click="isBankModalOpen = true">
+      <i class="bank-icon"></i>
+      Update Bank Info
+    </button>
+
+    <BaseModal
+      :isOpen="isBankModalOpen"
+      title="Update Bank Info"
+      @close="isBankModalOpen = false"
+    >
+      <div class="bank-form">
+        <div class="form-group">
+          <label for="bankName">Bank Name:</label>
+          <input id="bankName" v-model="bankForm.bank_name" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="accountNumber">Account Number:</label>
+          <input id="accountNumber" v-model="bankForm.account_number" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="accountHolder">Account Holder:</label>
+          <input id="accountHolder" v-model="bankForm.account_holder" class="form-control" />
+        </div>
+      </div>
+      <template v-slot:footer>
+        <button class="cancel-btn" @click="isBankModalOpen = false">Cancel</button>
+        <button class="submit-btn" @click="submitBankInfo">Save</button>
+      </template>
+    </BaseModal>
     
     <BaseModal
       :isOpen="isDetailModalOpen"
@@ -127,10 +156,24 @@
                 </div>
               </div>
             </div>
-            <div v-else-if="selectedOrder.status === 'Accepted'" class="status-update">
+            <div v-else-if="selectedOrder.status === 'Paid'" class="status-update">
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Processing')">
                 Mark as Processing
               </button>
+              <div v-if="selectedOrder.payment_receipt_url" class="receipt-section" style="margin-top: 16px;">
+                <label><strong>Payment Receipt:</strong></label>
+                <a
+                  :href="receiptUrl(selectedOrder.payment_receipt_url)"
+                  target="_blank"
+                  rel="noopener"
+                  class="receipt-link"
+                >
+                  View Receipt
+                </a>
+              </div>
+              <div v-else class="receipt-section" style="margin-top: 16px;">
+                <em>No payment receipt uploaded yet.</em>
+              </div>
             </div>
             <div v-else-if="selectedOrder.status === 'Processing'" class="status-update">
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivering')">
@@ -172,11 +215,18 @@ export default {
     return {
       searchQuery: '',
       orders: [],
-      isDetailModalOpen: false,
+      isDetailModalOpen: false, 
       selectedOrder: null,
       orderItems: [],
       showDecline: false,
-      declineMessage: ""
+      declineMessage: "",
+      isBankModalOpen: false,
+      bankAccountId: null,
+      bankForm: {
+        bank_name: "",
+        account_number: "",
+        account_holder: ""
+      },
     };
   },
   computed: {
@@ -195,6 +245,7 @@ export default {
   },
   mounted() {
     this.fetchOrders();
+    this.fetchBankInfo();
   },
   methods: {
     async fetchOrders() {
@@ -280,10 +331,50 @@ export default {
         'status-delivered': status === 'Delivered',
         'status-delivering': status === 'Delivering',
         'status-processing': status === 'Processing',
+        'status-paid': status === 'Paid',
         'status-accepted': status === 'Accepted',
         'status-declined': status === 'Declined',
         'status-pending': status === 'Pending'
       };
+    },
+    async fetchBankInfo() {
+      try {
+        const res = await api.get("/api/supplier-bank-accounts/by-supplier");
+        if (res.data.length > 0) {
+          const bank = res.data[0];
+          this.bankForm = {
+            bank_name: bank.bank_name,
+            account_number: bank.account_number,
+            account_holder: bank.account_holder
+          };
+          this.bankAccountId = bank.id;
+        }
+      } catch (e) {
+        // No bank info yet
+        this.bankAccountId = null;
+      }
+    },
+    async submitBankInfo() {
+      try {
+        if (this.bankAccountId) {
+          // Update existing
+          await api.delete(`/api/supplier-bank-accounts/${this.bankAccountId}`);
+        }
+        await api.post("/api/supplier-bank-accounts/", {
+          ...this.bankForm,
+          supplier_id: null 
+        });
+        this.isBankModalOpen = false;
+        this.fetchBankInfo();
+      } catch (e) {
+        alert("Failed to update bank info.");
+      }
+    },
+    receiptUrl(path) {
+      // If your backend serves static files from /uploads, adjust as needed
+      if (!path) return "#";
+      if (path.startsWith("http")) return path;
+      return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
     }
   }
 };
@@ -416,6 +507,11 @@ td {
 .status-delivering {
   background-color: #edf7fd;
   color: #0ea5e9;
+}
+
+.status-paid {
+  background-color: #f0f4ff;
+  color: #2563eb;
 }
 
 .status-processing {
@@ -637,6 +733,87 @@ td {
 .decline-actions {
   display: flex;
   gap: 8px;
+}
+
+.update-bank-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: auto;
+  margin-top: 20px;
+  transition: background-color 0.2s;
+}
+.update-bank-btn:hover {
+  background-color: #0052a3;
+}
+.bank-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 10l9-7 9 7v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7z' /%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.bank-form {
+  width: 100%;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  font-size: 14px;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+.form-control {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.cancel-btn {
+  padding: 10px 16px;
+  background-color: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.2s;
+}
+.cancel-btn:hover {
+  background-color: #cbd5e0;
+}
+.submit-btn {
+  padding: 10px 24px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.submit-btn:hover {
+  background-color: #0052a3;
+}
+.receipt-link {
+  color: #2563eb;
+  text-decoration: underline;
+  margin-left: 8px;
+}
+.receipt-link:hover {
+  color: #1d4ed8;
 }
 
 </style>

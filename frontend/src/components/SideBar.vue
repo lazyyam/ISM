@@ -32,16 +32,16 @@ export default {
   computed: {
     sidebarItem() {
       const managerPage = [
-        { path: "/dashboard-manager", icon: "dashboard.png", label: "Dashboard" },
+        //{ path: "/dashboard-manager", icon: "dashboard.png", label: "Dashboard" },
+        { path: "/inventory-analysis", icon: "inventory_analysis.png", label: "Inventory Analysis" },
         { path: "/product-list", icon: "product.png", label: "Product"},
         { path: "/purchase-order-manager", icon: "purchase_order.png", label: "Purchase Order" },
         { path: "/reports-list", icon: "reports.png", label: "Report" },
-        { path: "/inventory-analysis", icon: "inventory_analysis.png", label: "Inventory Analysis" },
         { path: "/suppliers-list", icon: "suppliers.png", label: "Suppliers" },
       ];
       
       const supplierPage = [
-        { path: "/dashboard-supplier", icon: "dashboard.png", label: "Dashboard" },
+        //{ path: "/dashboard-supplier", icon: "dashboard.png", label: "Dashboard" },
         { path: "/manage-account", icon: "manage_account.png", label: "Manage Account" },
         { path: "/product-catalog", icon: "product_catalog.png", label: "Product Catalog" },
         { path: "/purchase-order-supplier", icon: "purchase_order.png", label: "Purchase Order" },

@@ -58,7 +58,7 @@
                   class="edit-btn"
                   :disabled="order.status !== 'Pending'"
                   @click="editOrder(order)"
-                  title="Edit (only when Pending)"
+                  title="Edit"
                 >
                   <i class="edit-icon"></i>
                 </button>
@@ -83,6 +83,14 @@
     <MappingModal
       :isOpen="showMappingModal"
       @close="showMappingModal = false"
+    />
+
+    <!-- Payment Modal -->
+    <PaymentModal
+      v-if="isPaymentModalOpen"
+      :order="selectedOrder"
+      @close="isPaymentModalOpen = false"
+      @payment-success="onPaymentSuccess"
     />
 
     <!-- Order Details/Status Modal -->
@@ -138,12 +146,17 @@
               </span>
             </div>
 
+            <div v-if="selectedOrder.status === 'Accepted'" class="status-update">
+              <button class="accept-btn" @click="openPaymentModal(selectedOrder)">
+                Proceed to Payment
+              </button>
+            </div>
             <div v-if="selectedOrder.status === 'Delivering'" class="status-update">
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivered')">
                 Mark as Delivered
               </button>
             </div>
-          </div>
+          </div>    
           <div class="status-history">
             <h4>Status History</h4>
             <ul>
@@ -266,13 +279,15 @@
 <script>
 import BaseModal from "@/components/BaseModal.vue";
 import MappingModal from "@/components/MappingModal.vue";
+import PaymentModal from "@/components/PaymentModal.vue";
 import api from "@/services/api";
 
 export default {
   name: 'PurchaseOrderManager',
   components: {
     BaseModal,
-    MappingModal
+    MappingModal,
+    PaymentModal
   },
   data() {
     return {
@@ -281,6 +296,7 @@ export default {
       selectedOrder: null,
       isEditing: false,
       showMappingModal: false,
+      isPaymentModalOpen: false,
       currentOrderId: null,
       orders: [],
       suppliers: [],
@@ -400,6 +416,7 @@ export default {
         'status-delivered': status === 'Delivered',
         'status-delivering': status === 'Delivering',
         'status-processing': status === 'Processing',
+        'status-paid': status === 'Paid',
         'status-accepted': status === 'Accepted',
         'status-declined': status === 'Declined',
         'status-pending': status === 'Pending'
@@ -565,6 +582,16 @@ export default {
         }
       }
     },
+    openPaymentModal(order) {
+      this.selectedOrder = order;
+      this.isDetailModalOpen = false;
+      this.isPaymentModalOpen = true;
+    },
+    onPaymentSuccess() {
+      this.isPaymentModalOpen = false;
+      this.updateOrderStatus(this.selectedOrder.id, 'Paid');
+      this.isDetailModalOpen = true;
+    },
   },
 };
 </script>
@@ -702,6 +729,11 @@ td {
 .status-processing {
   background-color: #eff6ff;
   color: #1d4ed8;
+}
+
+.status-paid {
+  background-color: #f0f4ff;
+  color: #2563eb;
 }
 
 .status-accepted {

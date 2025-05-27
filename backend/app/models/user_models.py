@@ -19,3 +19,4 @@ class User(Base):
 
     supplier_products = relationship("SupplierProduct", back_populates="supplier", cascade="all, delete-orphan")
     purchase_orders = relationship("PurchaseOrder", back_populates="supplier", cascade="all, delete-orphan")
+    bank_accounts = relationship("SupplierBankAccount", back_populates="supplier", cascade="all, delete-orphan")

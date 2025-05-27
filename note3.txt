@@ -1,4 +1,4 @@
-
+expiry date notification
 Total Sales & Restocks: For the selected period.
 Top Selling Products: For the selected period.
 Low Stock Alerts: Products running low (optional, but useful).

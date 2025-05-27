@@ -8,3 +8,4 @@ from .purchase_order_items_models import PurchaseOrderItem
 from .purchase_order_status_history_models import PurchaseOrderStatusHistory
 from .product_mapping_models import ProductMapping
 from .sales_models import Sales
+from .supplier_bank_account_models import SupplierBankAccount
