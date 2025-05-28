@@ -49,6 +49,8 @@ class PurchaseOrderRead(PurchaseOrderBase):
     supplier_name: Optional[str] = None
     company_name: Optional[str] = None
     status_history: Optional[List[StatusHistoryEntry]] = []
+    payment_receipt_url: Optional[str] = None 
+    payment_date: Optional[datetime] = None 
 
     class Config:
         from_attributes = True

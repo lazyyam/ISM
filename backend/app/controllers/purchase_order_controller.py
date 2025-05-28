@@ -215,12 +215,12 @@ def get_purchase_order(order_id: int, db: Session = Depends(get_db)):
         "status": order.status,
         "total_cost": order.total_cost,
         "payment_receipt_url": order.payment_receipt_url,
-        "payment_date": order.payment_date,
+        "payment_date": order.payment_date, 
         "items": [
             {
                 "id": item.id,
                 "supplier_product_id": item.supplier_product_id,
-                "quantity": item.quantity,
+                "quantity": item.quantity, 
                 "unit_cost": item.unit_cost,
                 "subtotal": item.subtotal,
                 "product_name": item.supplier_product.name if item.supplier_product else None
