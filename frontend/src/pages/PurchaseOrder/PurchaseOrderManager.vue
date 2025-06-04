@@ -155,8 +155,21 @@
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivered')">
                 Mark as Delivered
               </button>
-            </div>
-          </div>    
+            </div>            
+          </div> 
+          <div v-if="['Paid', 'Processing', 'Delivering', 'Delivered'].includes(selectedOrder.status)" class="receipt-section" style="margin-top: 16px;">
+            <label><strong>Payment Receipt:</strong></label>
+            <a
+              :href="receiptUrl(selectedOrder.payment_receipt_url)"
+              target="_blank"
+              rel="noopener"
+              class="receipt-link"
+              v-if="selectedOrder.payment_receipt_url"
+            >
+              View Receipt
+            </a>
+            <em v-else>No payment receipt uploaded yet.</em>
+          </div>   
           <div class="status-history">
             <h4>Status History</h4>
             <ul>
@@ -478,7 +491,7 @@ export default {
     resetForm() {
       const today = new Date();
       this.formData = {
-        orderDate: today.toISOString().split("T")[0],
+        orderDate: today.toLocaleDateString('en-CA'),
         supplierId: "",
         description: "",
         status: "Pending",
@@ -591,6 +604,11 @@ export default {
       this.isPaymentModalOpen = false;
       this.updateOrderStatus(this.selectedOrder.id, 'Paid');
       this.isDetailModalOpen = true;
+    },
+    receiptUrl(path) {
+      if (!path) return "#";
+      if (path.startsWith("http")) return path;
+      return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
     },
   },
 };
@@ -1153,5 +1171,14 @@ td {
 
 .close-btn:hover {
   background-color: #cbd5e0;
+}
+
+.receipt-link {
+  color: #2563eb;
+  text-decoration: underline;
+  margin-left: 8px;
+}
+.receipt-link:hover {
+  color: #1d4ed8;
 }
 </style>

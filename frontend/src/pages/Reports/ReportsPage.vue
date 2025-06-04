@@ -34,9 +34,13 @@
           style="width: 90px"
         />
       </div>
-      <button class="generate-report-btn" @click="downloadPDF">
+      <button class="generate-report-btn" @click="downloadSalesPDF">
         <span class="download-icon"></span>
-        Download PDF
+        Download Sales PDF
+      </button>
+      <button class="generate-report-btn" @click="downloadInventoryPDF">
+        <span class="download-icon"></span>
+        Download Restock/Adjustment PDF
       </button>
     </div>
 
@@ -81,7 +85,7 @@
           </thead>
           <tbody>
             <tr v-for="entry in filteredInventory" :key="entry.id">
-              <td>{{ entry.date }}</td>
+              <td>{{ entry.created_at ? entry.created_at.split('T')[0] : '-' }}</td>
               <td>{{ entry.product_name }}</td>
               <td>{{ entry.transaction_type }}</td>
               <td>{{ entry.change_amount }}</td>
@@ -101,17 +105,23 @@ import html2pdf from "html2pdf.js";
 export default {
   name: 'ReportsPage',
   data() {
-    const today = new Date().toISOString().split("T")[0];
+    const savedViewMode = localStorage.getItem('reportsViewMode') || "daily";
+    const today = new Date().toLocaleDateString('en-CA');
     const thisMonth = today.slice(0, 7);
     const thisYear = today.slice(0, 4);
     return {
-      viewMode: "daily",
+      viewMode: savedViewMode,
       selectedDate: today,
       selectedMonth: thisMonth,
       selectedYear: thisYear,
       sales: [],
       inventory: [],
     };
+  },
+  watch: {
+    viewMode(newVal) {
+      localStorage.setItem('reportsViewMode', newVal);
+    }
   },
   computed: {
     filteredSales() {
@@ -128,13 +138,13 @@ export default {
     },
     filteredInventory() {
       if (this.viewMode === "daily") {
-        return this.inventory.filter(e => e.date === this.selectedDate);
+        return this.inventory.filter(e => e.created_at && e.created_at.split('T')[0] === this.selectedDate);
       }
       if (this.viewMode === "monthly") {
-        return this.inventory.filter(e => e.date && e.date.startsWith(this.selectedMonth));
+        return this.inventory.filter(e => e.created_at && e.created_at.startsWith(this.selectedMonth));
       }
       if (this.viewMode === "yearly") {
-        return this.inventory.filter(e => e.date && e.date.startsWith(this.selectedYear));
+        return this.inventory.filter(e => e.created_at && e.created_at.startsWith(this.selectedYear));
       }
       return this.inventory;
     }
@@ -147,10 +157,7 @@ export default {
     async fetchSales() {
       try {
         const res = await api.get("/api/sales/");
-        this.sales = res.data.map(sale => ({
-          ...sale,
-          product_name: sale.product?.name || sale.product_name || 'Unknown'
-        }));
+        this.sales = res.data;
       } catch (e) {
         this.sales = [];
       }
@@ -158,26 +165,27 @@ export default {
     async fetchInventory() {
       try {
         const res = await api.get("/api/inventory/");
-        this.inventory = res.data.map(entry => ({
-          ...entry,
-          product_name: entry.product?.name || entry.product_name || 'Unknown',
-          date: entry.timestamp ? entry.timestamp.split('T')[0] : entry.date
-        }));
+        this.inventory = res.data;
       } catch (e) {
         this.inventory = [];
       }
     },
-    downloadPDF() {
-      // Combine both sections for PDF
+    downloadSalesPDF() {
       const element = document.createElement("div");
-      element.innerHTML =
-        `<h2>Sales History</h2>` +
-        this.$refs.salesSection.innerHTML +
-        `<h2>Restock & Adjustment History</h2>` +
-        this.$refs.restockSection.innerHTML;
+      element.innerHTML = `<h2>Sales History</h2>` + this.$refs.salesSection.innerHTML;
       html2pdf().from(element).set({
         margin: 0.5,
-        filename: `report_${this.viewMode}_${this.getReportPeriod()}.pdf`,
+        filename: `sales_report_${this.viewMode}_${this.getReportPeriod()}.pdf`,
+        html2canvas: { scale: 1 },
+        jsPDF: { unit: "in", format: "a4", orientation: "portrait" }
+      }).save();
+    },
+    downloadInventoryPDF() {
+      const element = document.createElement("div");
+      element.innerHTML = `<h2>Restock & Adjustment History</h2>` + this.$refs.restockSection.innerHTML;
+      html2pdf().from(element).set({
+        margin: 0.5,
+        filename: `restock_report_${this.viewMode}_${this.getReportPeriod()}.pdf`,
         html2canvas: { scale: 1 },
         jsPDF: { unit: "in", format: "a4", orientation: "portrait" }
       }).save();

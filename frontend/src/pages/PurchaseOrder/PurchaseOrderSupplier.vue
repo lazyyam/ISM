@@ -142,12 +142,14 @@
             </div>
             
             <div v-if="selectedOrder.status === 'Pending'" class="status-update">
-              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Accepted')">
-                Accept Order
-              </button>
-              <button class="decline-btn" @click="showDecline = true">
-                Decline Order
-              </button>
+              <div class="button-group">
+                <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Accepted')">
+                  Accept Order
+                </button>
+                <button class="decline-btn" @click="showDecline = true">
+                  Decline Order
+                </button>
+              </div>
               <div v-if="showDecline" class="decline-reason-box">
                 <textarea v-model="declineMessage" placeholder="Enter reason for declining"></textarea>
                 <div class="decline-actions">
@@ -160,26 +162,25 @@
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Processing')">
                 Mark as Processing
               </button>
-              <div v-if="selectedOrder.payment_receipt_url" class="receipt-section" style="margin-top: 16px;">
-                <label><strong>Payment Receipt:</strong></label>
-                <a
-                  :href="receiptUrl(selectedOrder.payment_receipt_url)"
-                  target="_blank"
-                  rel="noopener"
-                  class="receipt-link"
-                >
-                  View Receipt
-                </a>
-              </div>
-              <div v-else class="receipt-section" style="margin-top: 16px;">
-                <em>No payment receipt uploaded yet.</em>
-              </div>
             </div>
             <div v-else-if="selectedOrder.status === 'Processing'" class="status-update">
               <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivering')">
                 Mark as Delivering
               </button>
-            </div>
+            </div>                            
+          </div>
+          <div v-if="['Paid', 'Processing', 'Delivering', 'Delivered'].includes(selectedOrder.status)" class="receipt-section" style="margin-top: 16px;">
+            <label><strong>Payment Receipt:</strong></label>
+            <a
+              :href="receiptUrl(selectedOrder.payment_receipt_url)"
+              target="_blank"
+              rel="noopener"
+              class="receipt-link"
+              v-if="selectedOrder.payment_receipt_url"
+            >
+              View Receipt
+            </a>
+            <em v-else>No payment receipt uploaded yet.</em>
           </div>
           <div class="status-history">
             <h4>Status History</h4>
@@ -371,7 +372,6 @@ export default {
       }
     },
     receiptUrl(path) {
-      // If your backend serves static files from /uploads, adjust as needed
       if (!path) return "#";
       if (path.startsWith("http")) return path;
       return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
@@ -671,6 +671,11 @@ td {
   background-color: #cbd5e0;
 }
 
+.button-group {
+  display: flex;
+  align-items: center;
+}
+
 .accept-btn {
   padding: 8px 16px;
   background-color: #059669;
@@ -681,6 +686,7 @@ td {
   cursor: pointer;
   margin-right: 8px;
   transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
 .accept-btn:hover {
@@ -697,6 +703,7 @@ td {
   cursor: pointer;
   margin-right: 8px;
   transition: background-color 0.2s;
+  white-space: nowrap;
 }
 .decline-btn:hover {
   background-color: #b91c1c;

@@ -11,6 +11,8 @@ from controllers.purchase_order_controller import purchase_order_router
 from controllers.product_mapping_controller import product_mapping_router
 from controllers.sales_controller import sales_router
 from controllers.supplier_bank_account_controller import supplier_bank_account_router
+from controllers.inventory_controller import inventory_router
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -24,6 +26,8 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 app.include_router(auth_router, prefix="/api", tags=["Auth"])
 app.include_router(product_router, prefix="/api/products", tags=["Products"])
 app.include_router(supplier_router, prefix="/api/suppliers", tags=["Suppliers"])
@@ -32,6 +36,7 @@ app.include_router(purchase_order_router, prefix="/api/purchase-orders", tags=["
 app.include_router(product_mapping_router, prefix="/api/product-mappings", tags=["Product Mappings"])
 app.include_router(sales_router, prefix="/api/sales", tags=["Sales"])
 app.include_router(supplier_bank_account_router, prefix="/api/supplier-bank-accounts", tags=["Supplier Bank Accounts"])
+app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 
 @app.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
@@ -42,3 +47,4 @@ def test_db(db: Session = Depends(get_db)):
 @app.get("/")
 async def root():
     return {"message": "FastAPI is running"}
+

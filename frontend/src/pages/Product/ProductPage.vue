@@ -441,11 +441,13 @@
         this.isEditingBatch = false;
       },
       resetSellForm() {
+        const today = new Date();
+
         this.sellFormData = {
           quantity: 1,
           maxQuantity: 0,
           price: '',
-          sell_date: '',
+          sell_date: today.toLocaleDateString('en-CA'),
           product_id: null,
           batch_id: null
         };
@@ -475,12 +477,14 @@
         
         // Set default dates
         const today = new Date();
-        this.batchFormData.received_date = today.toISOString().split('T')[0];
+
+        // Set received date to today
+        this.batchFormData.received_date = today.toLocaleDateString('en-CA');
         
         // Default expiry date (6 months from today)
         const expiry_date = new Date();
         expiry_date.setMonth(expiry_date.getMonth() + 6);
-        this.batchFormData.expiry_date = expiry_date.toISOString().split('T')[0];
+        this.batchFormData.expiry_date = expiry_date.toLocaleDateString('en-CA');
         
         this.isBatchModalOpen = true;
       },
@@ -496,6 +500,7 @@
         setTimeout(this.resetBatchForm, 300);
       },
       openSellProductModal(product) {
+        this.resetSellForm();
         this.salesProduct = product;
         this.isSalesModalOpen = true;
       },

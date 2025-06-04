@@ -1,6 +1,6 @@
 from .user_models import User
 from .product_models import Product
-from .inventory_models import Inventory
+from .inventory_models import Inventory, TransactionTypeEnum
 from .product_batch_models import ProductBatch
 from .supplier_product_models import SupplierProduct
 from .purchase_orders_models import PurchaseOrder

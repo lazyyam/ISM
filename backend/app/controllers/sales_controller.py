@@ -13,7 +13,18 @@ sales_router = APIRouter()
 # List all sales
 @sales_router.get("/", response_model=List[SaleRead])
 def get_sales(db: Session = Depends(get_db)):
-    return db.query(Sales).all()
+    sales = db.query(Sales).all()
+    result = []
+    for sale in sales:
+        result.append({
+            "id": sale.id,
+            "product_id": sale.product_id,
+            "quantity": sale.quantity,
+            "sell_date": sale.sell_date,
+            "remarks": sale.remarks,
+            "product_name": sale.product.name if sale.product else "Unknown"
+        })
+    return result
 
 # Create a sale (FEFO: deduct from earliest expiry batches)
 @sales_router.post("/", response_model=SaleRead)
@@ -57,4 +68,11 @@ def create_sale(sale: SaleCreate, db: Session = Depends(get_db)):
     db.add(new_sale)
     db.commit()
     db.refresh(new_sale)
-    return new_sale
+    return {
+        "id": new_sale.id,
+        "product_id": new_sale.product_id,
+        "quantity": new_sale.quantity,
+        "sell_date": new_sale.sell_date,
+        "remarks": new_sale.remarks,
+        "product_name": product.name if product else "Unknown"
+    }

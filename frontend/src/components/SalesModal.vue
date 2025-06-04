@@ -53,7 +53,7 @@ export default {
   data() {
     return {
       quantity: 1,
-      sellDate: new Date().toISOString().split("T")[0],
+      sellDate: new Date().toLocaleDateString('en-CA'),
       remarks: "",
       maxQuantity: this.product
         ? this.product.batches.reduce((sum, b) => sum + (b.quantity || 0), 0)

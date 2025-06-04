@@ -13,6 +13,7 @@ class SaleCreate(SaleBase):
 
 class SaleRead(SaleBase):
     id: int
+    product_name: str
 
     class Config:
         from_attributes = True
