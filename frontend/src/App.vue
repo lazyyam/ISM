@@ -125,3 +125,4 @@ html, body {
 <!--npm install jwt-decode-->
 <!--npm install chart.js-->
 <!--npm install html2pdf.js-->
+<!--npm install jspdf jspdf-autotable-->

@@ -3,45 +3,52 @@
     <h1>Reports</h1>
 
     <div class="reports-actions">
-      <div class="view-mode">
-        <label>
-          <input type="radio" value="daily" v-model="viewMode" /> Daily
-        </label>
-        <label>
-          <input type="radio" value="monthly" v-model="viewMode" /> Monthly
-        </label>
-        <label>
-          <input type="radio" value="yearly" v-model="viewMode" /> Yearly
-        </label>
+      <div class="controls-group">
+        <div class="view-mode">
+          <label>
+            <input type="radio" value="daily" v-model="viewMode" /> Daily
+          </label>
+          <label>
+            <input type="radio" value="monthly" v-model="viewMode" /> Monthly
+          </label>
+          <label>
+            <input type="radio" value="yearly" v-model="viewMode" /> Yearly
+          </label>
+        </div>
+        <div class="date-picker">
+          <input
+            v-if="viewMode === 'daily'"
+            type="date"
+            v-model="selectedDate"
+            class="date-input"
+          />
+          <input
+            v-if="viewMode === 'monthly'"
+            type="month"
+            v-model="selectedMonth"
+            class="date-input"
+          />
+          <input
+            v-if="viewMode === 'yearly'"
+            type="number"
+            min="2000"
+            max="2100"
+            v-model="selectedYear"
+            class="date-input year-input"
+            placeholder="Year"
+          />
+        </div>
       </div>
-      <div class="date-picker">
-        <input
-          v-if="viewMode === 'daily'"
-          type="date"
-          v-model="selectedDate"
-        />
-        <input
-          v-if="viewMode === 'monthly'"
-          type="month"
-          v-model="selectedMonth"
-        />
-        <input
-          v-if="viewMode === 'yearly'"
-          type="number"
-          min="2000"
-          max="2100"
-          v-model="selectedYear"
-          style="width: 90px"
-        />
+      <div class="button-group">
+        <button class="generate-report-btn" @click="downloadSalesPDF">
+          <span class="download-icon"></span>
+          Download Sales PDF
+        </button>
+        <button class="generate-report-btn" @click="downloadInventoryPDF">
+          <span class="download-icon"></span>
+          Download Restock/Adjustment PDF
+        </button>
       </div>
-      <button class="generate-report-btn" @click="downloadSalesPDF">
-        <span class="download-icon"></span>
-        Download Sales PDF
-      </button>
-      <button class="generate-report-btn" @click="downloadInventoryPDF">
-        <span class="download-icon"></span>
-        Download Restock/Adjustment PDF
-      </button>
     </div>
 
     <!-- Sales History Section -->
@@ -100,7 +107,8 @@
 
 <script>
 import api from "@/services/api";
-import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default {
   name: 'ReportsPage',
@@ -171,24 +179,51 @@ export default {
       }
     },
     downloadSalesPDF() {
-      const element = document.createElement("div");
-      element.innerHTML = `<h2>Sales History</h2>` + this.$refs.salesSection.innerHTML;
-      html2pdf().from(element).set({
-        margin: 0.5,
-        filename: `sales_report_${this.viewMode}_${this.getReportPeriod()}.pdf`,
-        html2canvas: { scale: 1 },
-        jsPDF: { unit: "in", format: "a4", orientation: "portrait" }
-      }).save();
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Sales Report", 14, 18);
+      doc.setFontSize(12);
+      doc.text(`Period: ${this.getReportPeriod()}`, 14, 28);
+
+      autoTable(doc, {
+        startY: 34,
+        head: [["Date", "Product", "Quantity", "Remarks"]],
+        body: this.filteredSales.map(sale => [
+          sale.sell_date,
+          sale.product_name,
+          sale.quantity,
+          sale.remarks || "-"
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [0, 102, 204] },
+        styles: { fontSize: 11 }
+      });
+
+      doc.save(`sales_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
     },
     downloadInventoryPDF() {
-      const element = document.createElement("div");
-      element.innerHTML = `<h2>Restock & Adjustment History</h2>` + this.$refs.restockSection.innerHTML;
-      html2pdf().from(element).set({
-        margin: 0.5,
-        filename: `restock_report_${this.viewMode}_${this.getReportPeriod()}.pdf`,
-        html2canvas: { scale: 1 },
-        jsPDF: { unit: "in", format: "a4", orientation: "portrait" }
-      }).save();
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Restock & Adjustment Report", 14, 18);
+      doc.setFontSize(12);
+      doc.text(`Period: ${this.getReportPeriod()}`, 14, 28);
+
+      autoTable(doc, {
+        startY: 34,
+        head: [["Date", "Product", "Type", "Quantity", "Batch"]],
+        body: this.filteredInventory.map(entry => [
+          entry.created_at ? entry.created_at.split('T')[0] : '-',
+          entry.product_name,
+          entry.transaction_type,
+          entry.change_amount,
+          entry.batch_id || '-'
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [0, 102, 204] },
+        styles: { fontSize: 11 }
+      });
+
+      doc.save(`restock_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
     },
     getReportPeriod() {
       if (this.viewMode === "daily") return this.selectedDate;
@@ -226,55 +261,90 @@ h2 {
 .reports-actions {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  gap: 10px;
 }
 
-.search-bar {
-  position: relative;
-  flex: 1;
-  max-width: 500px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23718096'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-}
-
-.search-bar input {
-  width: 100%;
-  padding: 10px 10px 10px 40px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.filter-dropdown {
-  margin-left: 15px;
-}
-
-.filter-btn {
+.controls-group {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  gap: 10px;
+}
+
+.view-mode {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.view-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
+  color: #4a5568;
   cursor: pointer;
 }
 
-.chevron-down {
+.view-mode input[type="radio"] {
+  margin: 0;
+}
+
+.date-picker {
+  display: flex;
+  align-items: center;
+}
+
+.date-input {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #2d3748;
+  background-color: white;
+  min-width: 140px;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.year-input {
+  min-width: 100px;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+}
+
+.generate-report-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.generate-report-btn:hover {
+  background-color: #0052a3;
+}
+
+.download-icon {
   width: 16px;
   height: 16px;
-  margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23718096'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' /%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
 }
@@ -312,81 +382,5 @@ th {
 td {
   color: #2d3748;
   font-size: 14px;
-}
-
-.action-cell {
-  width: 60px;
-  text-align: center;
-}
-
-.download-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.download-btn:hover {
-  background-color: #edf2f7;
-}
-
-.download-icon {
-  width: 16px;
-  height: 16px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a5568'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-}
-
-.generate-report-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  background-color: #0066cc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  margin-left: auto;
-  transition: background-color 0.2s;
-}
-
-.generate-report-btn:hover {
-  background-color: #0052a3;
-}
-
-.plus-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6v6m0 0v6m0-6h6m-6 0H6' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-}
-
-.view-mode {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-right: 20px;
-}
-.date-picker {
-  margin-right: 20px;
-}
-.download-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
 }
 </style>
