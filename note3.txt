@@ -1,17 +1,5 @@
 invoice
 
+filter
 
-
-Total sales (quantity and/or value) for the selected period
-Total restocked/adjusted quantity
-Number of transactions
-
-expiry date notification
-Low Stock Alerts: Products running low (optional, but useful).
-
-Graph/Chart: Visualize sales/restocks over time (optional, but adds value).
-
-
-Notification system – Alert manager when supplier accepts/declines.
-
-
+errormodal/toast

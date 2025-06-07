@@ -2,28 +2,30 @@
   <div class="inventory-analysis-container">
     <h1>Inventory Analysis</h1>
 
-    <!-- Notifications -->
-    <div class="notification-section" v-if="notifications.length">
-      <div v-for="(note, idx) in notifications" :key="'note-' + idx" class="notification">
-        {{ note }}
-      </div>
-    </div>
-
     <!-- Summary Section -->
     <div class="summary-section">
       <div class="summary-card">
-        <div class="summary-title">Total Sales</div>
+        <div class="summary-title">Total Sales Quantity</div>
         <div class="summary-value">
-          {{ totalSalesQuantity }} (Qty) / {{ formatCurrency(totalSalesValue) }}
+          {{ totalSalesQuantity }}
+        </div>
+        <div class="summary-breakdown">
+          Transactions: {{ totalSalesTransactions }}
         </div>
       </div>
       <div class="summary-card">
-        <div class="summary-title">Total Restocked/Adjusted</div>
+        <div class="summary-title">Total Restocked Quantity</div>
         <div class="summary-value">{{ totalRestockedQuantity }}</div>
+        <div class="summary-breakdown">
+          Transactions: {{ totalRestockTransactions }}
+        </div>
       </div>
       <div class="summary-card">
-        <div class="summary-title">Transactions</div>
-        <div class="summary-value">{{ totalTransactions }}</div>
+        <div class="summary-title">Total Adjusted Quantity</div>
+        <div class="summary-value">{{ totalAdjustedQuantity }}</div>
+        <div class="summary-breakdown">
+          Transactions: {{ totalAdjustmentTransactions }}
+        </div>
       </div>
     </div>
 
@@ -45,14 +47,12 @@
               <tr>
                 <th>Product Name</th>
                 <th>Quantity Sold</th>
-                <th>Revenue</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(product, index) in topSellingProducts" :key="'top-' + index">
                 <td>{{ product.name }}</td>
                 <td>{{ product.quantity }}</td>
-                <td>{{ formatCurrency(product.revenue) }}</td>
               </tr>
             </tbody>
           </table>
@@ -67,14 +67,12 @@
               <tr>
                 <th>Product Name</th>
                 <th>Quantity Sold</th>
-                <th>Revenue</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(product, index) in leastSellingProducts" :key="'least-' + index">
                 <td>{{ product.name }}</td>
                 <td>{{ product.quantity }}</td>
-                <td>{{ formatCurrency(product.revenue) }}</td>
               </tr>
             </tbody>
           </table>
@@ -90,17 +88,17 @@
           <table>
             <thead>
               <tr>
-                <th>Product ID</th>
-                <th>Date</th>
+                <th>Product Code</th>
+                <th>Product Name</th>
                 <th>Quantity</th>
-                <th>Alert Amt.</th>
+                <th>Threshold</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(alert, index) in stockAlerts" :key="'alert-' + index">
                 <td>{{ alert.productId }}</td>
-                <td>{{ alert.date }}</td>
+                <td>{{ alert.productName }}</td>
                 <td>{{ alert.quantity }}</td>
                 <td>{{ alert.alertAmount }}</td>
                 <td>{{ alert.status }}</td>
@@ -122,6 +120,7 @@
               <th>Batch</th>
               <th>Expiry Date</th>
               <th>Quantity</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -130,6 +129,11 @@
               <td>{{ item.batchId }}</td>
               <td>{{ item.expiryDate }}</td>
               <td>{{ item.quantity }}</td>
+              <td>
+                <span :style="{color: item.status === 'Expired' ? '#e53e3e' : '#b7791f'}">
+                  {{ item.status }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -139,6 +143,7 @@
 </template>
 
 <script>
+import api from "@/services/api";
 import Chart from 'chart.js/auto';
 
 export default {
@@ -148,123 +153,227 @@ export default {
       chart: null,
       isMounted: false,
       chartInitPromise: null,
-      notifications: [],
-      topSellingProducts: [
-        // Replace with real data from backend
-        { name: 'Product A', quantity: 120, revenue: 2400 },
-        { name: 'Product B', quantity: 90, revenue: 1800 }
-      ],
-      leastSellingProducts: [
-        { name: 'Product X', quantity: 5, revenue: 100 },
-        { name: 'Product Y', quantity: 8, revenue: 160 }
-      ],
-      stockAlerts: [
-        { productId: 'A123', date: '2025-06-04', quantity: 3, alertAmount: 5, status: 'Low' },
-        { productId: 'B456', date: '2025-06-04', quantity: 2, alertAmount: 5, status: 'Critical' }
-      ],
-      expiryAlerts: [
-        { productName: 'Product A', batchId: 'BATCH001', expiryDate: '2025-06-10', quantity: 10 },
-        { productName: 'Product B', batchId: 'BATCH002', expiryDate: '2025-06-12', quantity: 5 }
-      ],
-      chartData: {
-        labels: ['January', 'February', 'March', 'April'],
-        datasets: [
-          {
-            label: 'Incoming Stock',
-            data: [65, 70, 62, 67],
-            backgroundColor: '#ffda77',
-            borderColor: '#ffda77',
-            borderWidth: 1
-          },
-          {
-            label: 'Outgoing Stock',
-            data: [70, 75, 69, 72],
-            backgroundColor: '#5b6ff9',
-            borderColor: '#5b6ff9',
-            borderWidth: 1
-          }
-        ]
-      }
+      sales: [],
+      topSellingProducts: [],
+      leastSellingProducts: [],
+      products: [],
+      inventory: [],
+      stockAlerts: [],
+      expiryAlerts: [],
     };
   },
   computed: {
     totalSalesQuantity() {
-      return this.topSellingProducts.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
-    },
-    totalSalesValue() {
-      return this.topSellingProducts.reduce((sum, p) => sum + Number(p.revenue || 0), 0);
+      // Sum all sales transactions (quantity sold)
+      return this.inventory
+        .filter(e => e.transaction_type === "sale")
+        .reduce((sum, e) => sum + Math.abs(Number(e.change_amount) || 0), 0);
     },
     totalRestockedQuantity() {
-      // Replace with your real restock data
-      return 123; // Example
+      // Sum all restock transactions (quantity added)
+      return this.inventory
+        .filter(e => e.transaction_type === "restock")
+        .reduce((sum, e) => sum + Number(e.change_amount || 0), 0);
     },
-    totalTransactions() {
-      // Replace with your real transaction data
-      return this.topSellingProducts.length + this.leastSellingProducts.length;
+    totalAdjustedQuantity() {
+      // Sum all adjustment transactions (quantity adjusted)
+      return this.inventory
+        .filter(e => e.transaction_type === "manual_add" || e.transaction_type === "adjustment")
+        .reduce((sum, e) => sum + Number(e.change_amount || 0), 0);
+    },
+    totalSalesTransactions() {
+      return this.inventory.filter(e => e.transaction_type === "sale").length;
+    },
+    totalRestockTransactions() {
+      return this.inventory.filter(e => e.transaction_type === "restock").length;
+    },
+    totalAdjustmentTransactions() {
+      return this.inventory.filter(e => e.transaction_type === "adjustment").length;
+    },
+    chartDataFromInventory() {
+      // Group by YYYY-MM (month)
+      const incomingTypes = ["restock", "manual_add"];
+      const outgoingTypes = ["sale", "adjustment"];
+      const grouped = {};
+
+      this.inventory.forEach(entry => {
+        if (!entry.created_at) return;
+        const date = new Date(entry.created_at);
+        const month = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+        if (!grouped[month]) {
+          grouped[month] = { incoming: 0, outgoing: 0 };
+        }
+        if (incomingTypes.includes(entry.transaction_type)) {
+          grouped[month].incoming += Number(entry.change_amount) || 0;
+        }
+        if (outgoingTypes.includes(entry.transaction_type)) {
+          grouped[month].outgoing += Math.abs(Number(entry.change_amount) || 0);
+        }
+      });
+
+      // Sort months
+      const months = Object.keys(grouped).sort();
+      return {
+        labels: months,
+        datasets: [
+          {
+            label: "Incoming Stock",
+            data: months.map(m => grouped[m].incoming),
+            backgroundColor: "#ffda77",
+            borderColor: "#ffda77",
+            borderWidth: 1
+          },
+          {
+            label: "Outgoing Stock",
+            data: months.map(m => grouped[m].outgoing),
+            backgroundColor: "#5b6ff9",
+            borderColor: "#5b6ff9",
+            borderWidth: 1
+          }
+        ]
+      };
     }
   },
   mounted() {
-    this.fetchNotifications();
-    this.isMounted = true;
-    this.chartInitPromise = this.$nextTick().then(() => {
-      if (this.isMounted) {
-        this.initChart();
-      }
+    this.fetchSales();
+    this.fetchInventory().then(() => {
+      this.isMounted = true;
+      this.chartInitPromise = this.$nextTick().then(() => {
+        if (this.isMounted) {
+          this.initChart();
+        }
+      });
     });
+    this.fetchProducts();
   },
   beforeUnmount() {
     this.isMounted = false;
     this.destroyChart();
   },
   methods: {
-    fetchNotifications() {
-      // Fetch from backend or websocket
-      // Example:
-      this.notifications = [
-        "Supplier ABC accepted your order.",
-        "Supplier XYZ declined your order."
-      ];
-    },
-    formatCurrency(val) {
-      return "RM " + Number(val).toLocaleString();
-    },
-    initChart() {
-      if (!this.$refs.chartCanvas || this.chart || !this.isMounted) return;
-
+    async fetchSales() {
       try {
-        const ctx = this.$refs.chartCanvas.getContext('2d');
-        this.chart = new Chart(ctx, {
-          type: 'bar',
-          data: this.chartData,
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 0 },
-            hover: { animationDuration: 0 },
-            responsiveAnimationDuration: 0,
-            plugins: {
-              legend: { position: 'top' },
-              title: { display: false },
-              tooltip: { animation: { duration: 0 } }
-            },
-            elements: { line: { tension: 0 } },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: { animation: { duration: 0 } }
-              },
-              x: { ticks: { animation: { duration: 0 } } }
-            },
-            transitions: {
-              active: { animation: { duration: 0 } },
-              resize: { animation: { duration: 0 } }
-            }
+        const res = await api.get("/api/sales/");
+        this.sales = res.data;
+        this.updateProductSalesStats();
+      } catch (e) {
+        this.sales = [];
+        this.topSellingProducts = [];
+        this.leastSellingProducts = [];
+      }
+    },
+    async fetchInventory() {
+      try {
+        const res = await api.get("/api/inventory/");
+        this.inventory = res.data;
+      } catch (e) {
+        this.inventory = [];
+      }
+      // Only update chart if it exists
+      if (this.chart) {
+        this.updateChart();
+      }
+    },
+    async fetchProducts() {
+      try {
+        const res = await api.get("/api/products/");
+        this.products = res.data;
+        this.updateStockAlerts();
+        this.updateExpiryAlerts(); 
+      } catch (e) {
+        this.products = [];
+        this.stockAlerts = [];
+        this.expiryAlerts = [];
+      }
+    },
+    updateStockAlerts() {
+      this.stockAlerts = this.products
+        .map(product => {
+          // Calculate current stock
+          const currentStock = (product.inventory || []).reduce(
+            (sum, entry) => sum + Number(entry.change_amount || 0),
+            0
+          );
+          return {
+            productId: product.code,
+            productName: product.name,
+            quantity: currentStock,
+            alertAmount: product.stock_threshold,
+            status: currentStock <= product.stock_threshold ? (currentStock === 0 ? "Out of Stock" : "Low") : "OK"
+          };
+        })
+        .filter(alert => alert.status !== "OK");
+    },
+    updateProductSalesStats() {
+      // Group sales by product_id and sum quantity
+      const productSalesMap = {};
+      this.sales.forEach(sale => {
+        if (!productSalesMap[sale.product_id]) {
+          productSalesMap[sale.product_id] = {
+            name: sale.product_name,
+            quantity: 0
+          };
+        }
+        productSalesMap[sale.product_id].quantity += Number(sale.quantity) || 0;
+      });
+
+      // Convert to array
+      const productSalesArr = Object.values(productSalesMap);
+
+      // Sort descending for top, ascending for least
+      this.topSellingProducts = [...productSalesArr].sort((a, b) => b.quantity - a.quantity).slice(0, 3);
+      this.leastSellingProducts = [...productSalesArr].sort((a, b) => a.quantity - b.quantity).slice(0, 3);
+    },
+
+    updateExpiryAlerts() {
+      const today = new Date();
+      const soon = new Date();
+      soon.setDate(today.getDate() + 30); // Next 30 days
+
+      const alerts = [];
+      this.products.forEach(product => {
+        (product.batches || []).forEach(batch => {
+          if (!batch.expiry_date) return;
+          const expiry = new Date(batch.expiry_date);
+          if (expiry <= soon) {
+            alerts.push({
+              productName: product.name,
+              batchId: batch.batch_id,
+              expiryDate: batch.expiry_date,
+              quantity: batch.quantity,
+              status: expiry < today ? "Expired" : "Expiring Soon"
+            });
           }
         });
-      } catch (error) {
-        if (this.isMounted) {
-          console.error('Chart initialization error:', error);
+      });
+      // Sort: expired first, then soonest expiry
+      alerts.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+      this.expiryAlerts = alerts;
+    },
+    
+    initChart() {
+      if (!this.$refs.chartCanvas || this.chart || !this.isMounted) return;
+      const ctx = this.$refs.chartCanvas.getContext('2d');
+      this.chart = new Chart(ctx, {
+        type: 'bar',
+        data: this.chartDataFromInventory,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
         }
+      });
+    },
+    updateChart() {
+      if (this.chart) {
+        this.chart.data = this.chartDataFromInventory;
+        this.chart.update();
       }
     },
     destroyChart() {
@@ -330,6 +439,11 @@ h2 {
   font-size: 20px;
   font-weight: bold;
 }
+.summary-breakdown {
+  color: #718096;
+  font-size: 13px;
+  margin-top: 6px;
+}
 
 .chart-section {
   margin-bottom: 24px;
@@ -391,17 +505,6 @@ td {
 
 .expiry-alert-section {
   margin-bottom: 24px;
-}
-.notification-section {
-  margin-bottom: 16px;
-}
-.notification {
-  background: #fffbe6;
-  color: #b7791f;
-  padding: 10px 16px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-  border: 1px solid #f6e05e;
 }
 
 .expiry-alert-card {

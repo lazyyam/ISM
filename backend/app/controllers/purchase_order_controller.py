@@ -337,3 +337,28 @@ def upload_payment_receipt(order_id: int, file: UploadFile = File(...), db: Sess
     db.commit()
     db.refresh(order)
     return {"detail": "Payment receipt uploaded", "payment_receipt_url": file_path}
+
+@purchase_order_router.get("/notifications", tags=["Purchase Orders"])
+def get_purchase_order_notifications(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    # Get recent status changes for orders related to the current user (supplier or manager)
+    orders = db.query(PurchaseOrder).filter(
+        (PurchaseOrder.supplier_id == current_user.id)
+        # Optionally add more filters for manager role
+    ).all()
+    notifications = []
+    for order in orders:
+        for h in order.status_history:
+            notifications.append({
+                "order_id": order.id,
+                "status": h.status,
+                "updated_at": h.updated_at,
+                "message": h.message,
+                "description": order.description
+            })
+    # Sort by most recent
+    notifications.sort(key=lambda n: n["updated_at"], reverse=True)
+    # Limit to last 10
+    return notifications[:10]

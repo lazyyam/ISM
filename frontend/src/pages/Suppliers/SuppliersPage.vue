@@ -7,16 +7,9 @@
           <i class="search-icon"></i>
           <input 
             type="text" 
-            placeholder="Search supplier ID" 
+            placeholder="Search supplier by name, company, or phone number" 
             v-model="searchQuery"
           />
-        </div>
-        
-        <div class="filter-dropdown">
-          <button class="filter-btn">
-            Filter
-            <i class="chevron-down"></i>
-          </button>
         </div>
       </div>
       
@@ -152,21 +145,6 @@
     border: 1px solid #e2e8f0;
     border-radius: 4px;
     font-size: 14px;
-  }
-  
-  .filter-dropdown {
-    margin-left: 15px;
-  }
-  
-  .filter-btn {
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    background-color: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
   }
   
   .chevron-down {
