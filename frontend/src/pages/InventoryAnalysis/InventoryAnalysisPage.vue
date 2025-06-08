@@ -360,6 +360,7 @@ export default {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: false,
           plugins: {
             legend: { position: 'top' },
             title: { display: false }

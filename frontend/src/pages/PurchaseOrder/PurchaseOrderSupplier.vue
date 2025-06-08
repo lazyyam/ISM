@@ -13,10 +13,12 @@
       </div>
       
       <div class="filter-dropdown">
-        <button class="filter-btn">
-          Filter
-          <i class="chevron-down"></i>
-        </button>
+        <select v-model="selectedStatus" class="filter-select">
+          <option value="">All Statuses</option>
+          <option v-for="status in statusOptions" :key="status" :value="status">
+            {{ status }}
+          </option>
+        </select>
       </div>
     </div>
     
@@ -192,8 +194,13 @@
             </ul>
           </div>
         </div>
+        <div class="invoice-section" v-if="showInvoiceButton(selectedOrder)">
+          <button class="invoice-btn" @click="downloadInvoice(selectedOrder)">
+            <i class="invoice-icon"></i>
+            Download Invoice
+          </button>
+        </div>
       </div>
-      
       <template v-slot:footer>
         <button class="close-btn" @click="closeModal">
           Close
@@ -206,6 +213,8 @@
 <script>
 import BaseModal from "@/components/BaseModal.vue";
 import api from "@/services/api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default {
   name: 'PurchaseOrderSupplier',
@@ -215,6 +224,10 @@ export default {
   data() {
     return {
       searchQuery: '',
+      selectedStatus: '',
+      statusOptions: [
+        "Pending", "Accepted", "Paid", "Processing", "Delivering", "Delivered", "Declined"
+      ],
       orders: [],
       isDetailModalOpen: false, 
       selectedOrder: null,
@@ -232,16 +245,19 @@ export default {
   },
   computed: {
     filteredOrders() {
-      if (!this.searchQuery) {
-        return this.orders;
+      let filtered = this.orders;
+      if (this.selectedStatus) {
+        filtered = filtered.filter(order => order.status === this.selectedStatus);
       }
-      
-      const query = this.searchQuery.toLowerCase();
-      return this.orders.filter(order => {
-        return order.id.toString().includes(query) ||
-               order.description.toLowerCase().includes(query) ||
-               order.status.toLowerCase().includes(query);
-      });
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase();
+        filtered = filtered.filter(order => {
+          return order.id.toString().includes(query) ||
+                 order.description.toLowerCase().includes(query) ||
+                 order.status.toLowerCase().includes(query);
+        });
+      }
+      return filtered;
     }
   },
   mounted() {
@@ -375,7 +391,51 @@ export default {
       if (!path) return "#";
       if (path.startsWith("http")) return path;
       return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
-    }
+    },
+    showInvoiceButton(order) {
+      // Show for all except Pending/Declined
+      return order && !['Pending', 'Declined'].includes(order.status);
+    },
+    downloadInvoice(order) {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text("INVOICE", 14, 18);
+
+      doc.setFontSize(12);
+      doc.text(`Invoice #: ${order.id}`, 14, 28);
+      doc.text(`Order Date: ${this.formatDate(order.order_date)}`, 14, 36);
+      doc.text(`Supplier: ${order.supplier_name || ''}`, 14, 44);
+      doc.text(`Company: ${order.company_name || ''}`, 14, 52);
+      doc.text(`Status: ${order.status}`, 14, 60);
+
+      doc.text("Order Description:", 14, 70);
+      doc.text(order.description || '', 14, 78);
+
+      autoTable(doc, {
+        startY: 88,
+        head: [["Product", "Quantity", "Unit Cost", "Subtotal"]],
+        body: (this.orderItems || []).map(item => [
+          item.product_name,
+          item.quantity,
+          this.formatCurrency(item.unit_cost),
+          this.formatCurrency(item.subtotal)
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [0, 102, 204] },
+        styles: { fontSize: 11 }
+      });
+
+      // Total
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 88 + 8 * (this.orderItems?.length || 1);
+      doc.setFontSize(13);
+      doc.text(`Total: ${this.formatCurrency(order.total_cost)}`, 14, finalY + 12);
+
+      // Optional: Footer
+      doc.setFontSize(10);
+      doc.text("Thank you for your business!", 14, finalY + 24);
+
+      doc.save(`invoice_order_${order.id}.pdf`);
+    },
   }
 };
 </script>
@@ -821,6 +881,42 @@ td {
 }
 .receipt-link:hover {
   color: #1d4ed8;
+}
+
+.invoice-section {
+  margin-top: 24px;
+  text-align: right;
+}
+.invoice-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 18px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.invoice-btn:hover {
+  background-color: #0052a3;
+}
+.invoice-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z' /%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.filter-select {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  margin-left: 8px;
 }
 
 </style>
