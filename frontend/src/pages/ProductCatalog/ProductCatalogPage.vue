@@ -91,11 +91,15 @@
         
         <div class="form-group">
           <label for="productCategory">Product Category:</label>
-          <input 
-            id="productCategory" 
-            type="text" 
-            v-model="formData.category" 
-            class="form-control"
+          <v-select
+            id="productCategory"
+            v-model="formData.category"
+            :options="categoryOptions"
+            placeholder="Select or search category"
+            :reduce="cat => cat"
+            :taggable="true"
+            @new="addCategory"
+            class="form-control category-vselect"
           />
         </div>
         
@@ -144,11 +148,14 @@
 <script>
 import BaseModal from '@/components/BaseModal.vue';
 import api from "@/services/api";
+import vSelect from "vue-select";
+import "vue-select/dist/vue-select.css";
 
 export default {
   name: 'ProductCatalog',
   components: {
-    BaseModal
+    BaseModal,
+    vSelect
   },
   data() {
     return {
@@ -163,7 +170,17 @@ export default {
         cost: '',
         quantity_available: ''
       },
-      products: []
+      products: [],
+      categoryOptions: [
+        "Vegetables", "Fruits", "Herbs & Spices", "Poultry", "Beef & Lamb", "Fish & Seafood", "Frozen Meat",
+        "Milk", "Cheese", "Eggs", "Yogurt", "Bread", "Cakes & Pastries", "Buns & Rolls", "Canned Food",
+        "Instant Noodles", "Rice & Grains", "Cooking Oil", "Flour & Baking Supplies", "Sugar & Salt",
+        "Pasta & Spaghetti", "Soy Sauce", "Chili Sauce", "Curry Paste", "Seasoning Powders", "Bottled Water",
+        "Soft Drinks", "Coffee & Tea", "Juice", "Instant Beverages", "Biscuits & Cookies", "Chocolates & Candy",
+        "Chips & Crackers", "Traditional Snacks", "Detergents", "Cleaning Supplies", "Tissues & Towels",
+        "Trash Bags", "Soap & Body Wash", "Shampoo & Hair Care", "Toothpaste", "Sanitary Products", "Diapers",
+        "Baby Food", "Baby Wipes", "Pet Food", "Pet Grooming", "Others"
+      ]
     };
   },
   mounted() {
@@ -186,6 +203,12 @@ export default {
     }
   },
   methods: {
+    addCategory(newCategory) {
+      if (!this.categoryOptions.includes(newCategory)) {
+        this.categoryOptions.push(newCategory);
+      }
+      this.formData.category = newCategory;
+    },
     resetForm() {
       this.formData = {
         name: '',

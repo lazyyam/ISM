@@ -166,11 +166,15 @@
           
           <div class="form-group">
             <label for="productCategory">Product Category:</label>
-            <input 
-              id="productCategory" 
-              type="text" 
-              v-model="formData.category" 
-              class="form-control"
+            <v-select
+              id="productCategory"
+              v-model="formData.category"
+              :options="categoryOptions"
+              placeholder="Select or search category"
+              :reduce="cat => cat"
+              :taggable="true"
+              @new="addCategory"
+              class="form-control category-vselect"
             />
           </div>
           
@@ -335,12 +339,15 @@
   import BaseModal from '@/components/BaseModal.vue';
   import SalesModal from '@/components/SalesModal.vue';
   import api from "@/services/api";
+  import vSelect from "vue-select";
+  import "vue-select/dist/vue-select.css";
   
   export default {
     name: 'ProductPage',
     components: {
       BaseModal,
-      SalesModal
+      SalesModal,
+      vSelect
     },
     data() {
       return {
@@ -378,7 +385,17 @@
           product_id: null,
           batch_id: null
         },
-        products: []
+        products: [],
+        categoryOptions: [
+          "Vegetables", "Fruits", "Herbs & Spices", "Poultry", "Beef & Lamb", "Fish & Seafood", "Frozen Meat",
+          "Milk", "Cheese", "Eggs", "Yogurt", "Bread", "Cakes & Pastries", "Buns & Rolls", "Canned Food",
+          "Instant Noodles", "Rice & Grains", "Cooking Oil", "Flour & Baking Supplies", "Sugar & Salt",
+          "Pasta & Spaghetti", "Soy Sauce", "Chili Sauce", "Curry Paste", "Seasoning Powders", "Bottled Water",
+          "Soft Drinks", "Coffee & Tea", "Juice", "Instant Beverages", "Biscuits & Cookies", "Chocolates & Candy",
+          "Chips & Crackers", "Traditional Snacks", "Detergents", "Cleaning Supplies", "Tissues & Towels",
+          "Trash Bags", "Soap & Body Wash", "Shampoo & Hair Care", "Toothpaste", "Sanitary Products", "Diapers",
+          "Baby Food", "Baby Wipes", "Pet Food", "Pet Grooming", "Others"
+        ],
       };
     },
     mounted() {
@@ -404,6 +421,12 @@
       }
     },
     methods: {
+      addCategory(newCategory) {
+        if (!this.categoryOptions.includes(newCategory)) {
+          this.categoryOptions.push(newCategory);
+        }
+        this.formData.category = newCategory;
+      },
       formatDate(dateString) {
         if (!dateString) return '';
         
@@ -1006,5 +1029,40 @@
 }
 .sell-btn:hover {
   background-color: #2f855a;
+}
+</style>
+
+<!--Global style for v-select (ProductPage and ProductCatalogPage)-->
+<style>
+.category-vselect {
+  width: 100%;
+  font-size: 14px;
+}
+.v-select {
+  width: 100%;
+}
+.vs__dropdown-toggle, .vs__selected {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #2d3748;
+}
+.vs__dropdown-menu {
+  border-radius: 4px;
+}
+.vs__placeholder {
+  color: #718096;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  height: 38px;
+}
+.vs__dropdown-option--highlight {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+.vs__dropdown-option--selected {
+  background: #0066cc;
+  color: #fff;
 }
 </style>

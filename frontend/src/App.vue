@@ -126,3 +126,5 @@ html, body {
 <!--npm install chart.js-->
 <!--npm install html2pdf.js-->
 <!--npm install jspdf jspdf-autotable-->
+<!--npm install vue-multiselect-->
+<!--npm install vue-select@4.0.0-beta.1-->
