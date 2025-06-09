@@ -6,7 +6,7 @@
         <i class="search-icon"></i>
         <input 
           type="text" 
-          placeholder="Search order ID" 
+          placeholder="Search Order" 
           v-model="searchQuery"
         />
       </div>

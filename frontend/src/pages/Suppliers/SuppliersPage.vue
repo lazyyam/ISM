@@ -7,7 +7,7 @@
           <i class="search-icon"></i>
           <input 
             type="text" 
-            placeholder="Search supplier by name, company, or phone number" 
+            placeholder="Search Supplier by name, company, or phone number" 
             v-model="searchQuery"
           />
         </div>
