@@ -19,13 +19,17 @@
               v-model="email"
               required
               placeholder="Enter your email"
+              @input="clearError"
             />
           </div>
-          <button type="submit" class="submit-btn" :disable="message">
-            Send Reset Link
+          <p v-if="emailError" class="field-error">{{ emailError }}</p>
+          <button type="submit" class="submit-btn" :disabled="isLoading">
+            {{ isLoading ? "Sending..." : "Send Reset Link" }}
           </button>
         </form>
-        <p v-if="message" class="message">{{ message }}</p>
+        <p v-if="message" :class="{'success-message': isSuccess, 'field-error': !isSuccess}">
+          {{ message }}
+        </p>
       </div>
     </div>
   </template>
@@ -45,31 +49,50 @@
       return {
         email: "",
         message: "",
+        isSuccess: false,
+        emailError: "",
         isLoading: false,
       };
     },
     methods: {
+      clearError() {
+        this.emailError = "";
+        this.message = "";
+        this.isSuccess = false;
+      },
       async submitEmail() {
+        this.emailError = "";
+        this.message = "";
+        this.isSuccess = false;
+        // Validation
+        if (!this.email) {
+          this.emailError = "Email is required.";
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+          this.emailError = "Please enter a valid email address.";
+          return;
+        }
         this.isLoading = true;
         try {
           await api.post("/api/forgot-password", {
             email: this.email.trim().toLowerCase(),
           });
-  
           this.message = "A password reset link has been sent to your email.";
-          
+          this.isSuccess = true;
         } catch (error) {
           if (error.response && error.response.data) {
             this.message = error.response.data.detail || "Error sending reset link.";
           } else {
             this.message = "An error occurred. Please try again.";
           }
+          this.isSuccess = false;
         } finally {
           this.isLoading = false;
         }
       },
       goBack() {
-        this.$router.push("/login"); // Adjust route as needed
+        this.$router.push("/login"); 
       },
     },
   };
@@ -164,14 +187,31 @@
     margin-top: 0.5rem;
   }
 
-  .submit-btn:hover {
+  .submit-btn:disabled {
+    background-color: #a0aec0;
+    cursor: not-allowed;
+  }
+
+  .submit-btn:hover:enabled {
     background-color: #0069da;
   }
-  
-  .message {
-    margin-top: 10px;
+
+  .field-error {
+    color: #e53e3e;
     font-size: 14px;
+    margin-top: 6px;
+    margin-bottom: 0;
+    text-align: left;
+    width: 84%;
+    padding-left: 2.0rem;
+  }
+  .success-message {
     color: green;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: left;
+    width: 84%;
+    padding-left: 2.0rem;
   }
   </style>
   

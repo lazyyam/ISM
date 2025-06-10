@@ -7,16 +7,16 @@
         <i class="search-icon"></i>
         <input 
           type="text" 
-          placeholder="Search product ID" 
+          placeholder="Search product by name, code, or category" 
           v-model="searchQuery"
         />
       </div>
       
       <div class="filter-dropdown">
-        <button class="filter-btn">
-          Filter
-          <i class="chevron-down"></i>
-        </button>
+        <select v-model="selectedCategory" class="filter-select">
+          <option value="">All Categories</option>
+          <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
       </div>
     </div>
     
@@ -160,6 +160,7 @@ export default {
   data() {
     return {
       searchQuery: '',
+      selectedCategory: '',
       isModalOpen: false,
       isEditing: false,
       currentProductId: null,
@@ -188,15 +189,21 @@ export default {
   },
   computed: {
     filteredProducts() {
-      if (!this.searchQuery) {
-        return this.products;
+      let filtered = this.products;
+      if (this.selectedCategory) {
+        filtered = filtered.filter(product => product.category === this.selectedCategory);
       }
-      
-      const query = this.searchQuery.toLowerCase();
-      return this.products.filter(product => {
-        return product.name.toLowerCase().includes(query) ||
-               product.code.includes(query);
-      });
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase();
+        filtered = filtered.filter(product => {
+          return (
+            (product.name && product.name.toLowerCase().includes(query)) ||
+            (product.code && product.code.toLowerCase().includes(query)) ||
+            (product.category && product.category.toLowerCase().includes(query))
+          );
+        });
+      }
+      return filtered;
     },
     modalTitle() {
       return this.isEditing ? 'Edit Product' : 'Add Product';
@@ -508,5 +515,14 @@ td {
 
 .submit-btn:hover {
   background-color: #0052a3;
+}
+
+.filter-select {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  min-width: 180px;
 }
 </style>

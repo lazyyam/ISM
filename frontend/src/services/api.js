@@ -26,39 +26,51 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
+
+    // Do NOT try to refresh token for login/register/forgot/reset requests
+    const authUrls = [
+      "/api/login",
+      "/api/register",
+      "/api/forgot-password",
+      "/api/reset-password"
+    ];
     if (
-      error.response && 
-      error.response.status === 401 && 
-      !originalRequest._retry
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !authUrls.some(url => originalRequest.url.endsWith(url))
     ) {
       originalRequest._retry = true;
-      
+
       try {
         const refresh_token = localStorage.getItem("refresh_token");
-        
+
         if (!refresh_token) {
           throw new Error("No refresh token");
         }
-        
-        const response = await axios.post(`${API_URL}/api/refresh-token`, refresh_token, {
-          headers:{
-            'Content-Type': 'application/json'
+
+        const response = await axios.post(
+          `${API_URL}/api/refresh-token`,
+          refresh_token,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
           }
-        });
-        
+        );
+
         const newToken = response.data.access_token;
         localStorage.setItem("token", newToken);
-        
+
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return axios(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("token");
         localStorage.removeItem("refresh_token");
-        
+
         alert("Your session has expired. Please log in again.");
         router.push("/login");
-        
+
         return Promise.reject(refreshError);
       }
     }

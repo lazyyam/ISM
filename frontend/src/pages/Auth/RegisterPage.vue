@@ -11,34 +11,45 @@
       <form @submit.prevent="handleRegister">
         <div class="input-group">
           <label for="full_name">Full Name</label>
-          <input type="text" id="full_name" v-model="full_name" placeholder="Enter your full name" required />
+          <input type="text" id="full_name" v-model="full_name" placeholder="Enter your full name" required @input="clearFieldError('full_name')" />
+          <p v-if="fullNameError" class="field-error">{{ fullNameError }}</p>
         </div>
         <div class="input-group">
           <label for="company_name">Company Name</label>
-          <input type="text" id="company_name" v-model="company_name" placeholder="Enter your company name" required />
+          <input type="text" id="company_name" v-model="company_name" placeholder="Enter your company name" required @input="clearFieldError('company_name')" />
+          <p v-if="companyNameError" class="field-error">{{ companyNameError }}</p>
         </div>
         <div class="input-group">
           <label for="company_address">Company Address</label>
-          <textarea id="company_address" v-model="company_address" placeholder="Enter your company address" required></textarea>
+          <textarea id="company_address" v-model="company_address" placeholder="Enter your company address" required @input="clearFieldError('company_address')"></textarea>
+          <p v-if="companyAddressError" class="field-error">{{ companyAddressError }}</p>
         </div>
         <div class="input-group">
           <label for="email">Email</label>
-          <input type="email" id="email" v-model="email" placeholder="Enter your email" required />
+          <input type="email" id="email" v-model="email" placeholder="Enter your email" required @input="clearFieldError('email')" />
+          <p v-if="emailError" class="field-error">{{ emailError }}</p>
         </div>
         <div class="input-group">
           <label for="phone_number">Phone No.</label>
-          <input type="text" id="phone_number" v-model="phone_number" placeholder="Enter your phone number" required />
+          <input type="text" id="phone_number" v-model="phone_number" placeholder="Enter your phone number" required @input="clearFieldError('phone_number')" />
+          <p v-if="phoneNumberError" class="field-error">{{ phoneNumberError }}</p>
         </div>
         <div class="input-group">
           <label for="password">Password</label>
-          <input type="password" id="password" v-model="password" placeholder="Enter your password" required />
+          <input type="password" id="password" v-model="password" placeholder="Enter your password" required @input="clearFieldError('password')" />
+          <p v-if="passwordError" class="field-error">{{ passwordError }}</p>
         </div>
         
-        <p v-if="errorMessage" style="color: red; margin-top: 10px;">
+        <p v-if="errorMessage" class="form-error">
           {{ errorMessage }}
         </p>
+        <p v-if="successMessage" class="success-message">
+          {{ successMessage }}
+        </p>
 
-        <button type="submit" class="register-btn">Sign Up</button>
+        <button type="submit" class="register-btn" :disabled="loading">
+          {{ loading ? "Registering..." : "Sign Up" }}
+        </button>
         <button type="button" class="login-btn" @click="goToLogin">
           Already have an account? Login
         </button>
@@ -68,10 +79,77 @@ export default {
       company_name: "",
       company_address: "",
       errorMessage: "",
+      successMessage: "",
+      fullNameError: "",
+      emailError: "",
+      phoneNumberError: "",
+      passwordError: "",
+      companyNameError: "",
+      companyAddressError: "",
+      loading: false,
     };
   },
   methods: {
+    clearFieldError(field) {
+      if (field === "full_name") this.fullNameError = "";
+      if (field === "email") this.emailError = "";
+      if (field === "phone_number") this.phoneNumberError = "";
+      if (field === "password") this.passwordError = "";
+      if (field === "company_name") this.companyNameError = "";
+      if (field === "company_address") this.companyAddressError = "";
+      this.errorMessage = "";
+      this.successMessage = "";
+    },
     async handleRegister() {
+      this.errorMessage = "";
+      this.successMessage = "";
+      this.fullNameError = "";
+      this.emailError = "";
+      this.phoneNumberError = "";
+      this.passwordError = "";
+      this.companyNameError = "";
+      this.companyAddressError = "";
+
+      // Validation
+      if (!this.full_name) {
+        this.fullNameError = "Full name is required.";
+        return;
+      }
+      if (!this.company_name) {
+        this.companyNameError = "Company name is required.";
+        return;
+      }
+      if (!this.company_address) {
+        this.companyAddressError = "Company address is required.";
+        return;
+      }
+      if (!this.email) {
+        this.emailError = "Email is required.";
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+        this.emailError = "Please enter a valid email address.";
+        return;
+      }
+      if (!this.phone_number) {
+        this.phoneNumberError = "Phone number is required.";
+        return;
+      }
+      if (!/^\d{9,15}$/.test(this.phone_number.replace(/\D/g, ""))) {
+        this.phoneNumberError = "Please enter a valid phone number (9-15 digits).";
+        return;
+      }
+      if (!this.password) {
+        this.passwordError = "Password is required.";
+        return;
+      }
+      if (this.password.length < 8) {
+        this.passwordError = "Password must be at least 8 characters.";
+        return;
+      }
+      // Add more password rules if needed
+
+      this.loading = true;
       try {
         const response = await api.post("/api/register", {
           email: this.email,
@@ -84,15 +162,19 @@ export default {
         });
 
         console.log(response.data);
-        alert("Registration successful! Please login.");
-        this.$router.push("/login");
+        this.successMessage = "Registration successful! Please login.";
+        setTimeout(() => {
+          this.$router.push("/login");
+        }, 1200);
 
       } catch (error) {
-        console.error("Registration failed:", error.response?.data?.detail || error.message);
-
         this.errorMessage = error.response?.data?.detail 
-          ? JSON.stringify(error.response.data.detail) 
+          ? (typeof error.response.data.detail === "string"
+              ? error.response.data.detail
+              : JSON.stringify(error.response.data.detail))
           : "Registration failed.";
+      } finally {
+        this.loading = false;
       }
     },
     goBack() {
@@ -187,7 +269,12 @@ button {
   color: white;
 }
 
-.register-btn:hover {
+.register-btn[disabled] {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.register-btn:hover:enabled {
   background-color: #0069da;
 }
 
@@ -211,6 +298,33 @@ button {
 
 .back-icon:hover {
   color: #0056b3;
+}
+
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 84%;
+  padding-left: 2.0rem;
+}
+
+.form-error {
+  color: #e53e3e;
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-align: left;
+  width: 84%;
+  padding-left: 2.0rem;
+}
+
+.success-message {
+  color: green;
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-align: left;
+  width: 84%;
+  padding-left: 2.0rem;
 }
 
 @media (max-width: 576px) {

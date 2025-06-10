@@ -6,12 +6,29 @@
         <form @submit.prevent="handleLogin">
           <div class="input-group">
             <label for="email">Email</label>
-            <input type="email" id="email" v-model="email" placeholder="Enter your email" required />
+            <input
+              type="email"
+              id="email"
+              v-model="email"
+              placeholder="Enter your email"
+              required
+              @input="clearFieldError('email')"
+            />
+            <p v-if="emailError" class="field-error">{{ emailError }}</p>
           </div>
           <div class="input-group">
             <label for="password">Password</label>
-            <input type="password" id="password" v-model="password" placeholder="Enter your password" required />
+            <input
+              type="password"
+              id="password"
+              v-model="password"
+              placeholder="Enter your password"
+              required
+              @input="clearFieldError('password')"
+            />
+            <p v-if="passwordError" class="field-error">{{ passwordError }}</p>
           </div>
+          <p v-if="formError" class="form-error">{{ formError }}</p>
           <div class="options">
             <label class="remember-me">
               <input type="checkbox" v-model="rememberMe" /> Remember me
@@ -19,11 +36,9 @@
             <a href="#" class="forgot-password" @click.prevent="goToForgotPassword">Forgot password?</a>
           </div>
 
-          <p v-if="errorMessage" style="color: red; margin-top: 10px;">
-            {{ errorMessage }}
-          </p>
-
-          <button type="submit" class="login-btn">Login</button>
+          <button type="submit" class="login-btn" :disabled="loading">
+            {{ loading ? "Logging in..." : "Login" }}
+          </button>
           <button type="button" class="register-btn" @click="goToRegister">
             Create a new account
           </button>
@@ -42,64 +57,94 @@
         email: "",
         password: "",
         rememberMe: false,
-        errorMessage: "",
+        formError: "",
+        emailError: "",
+        passwordError: "",
+        loading: false,
       };
     },
     mounted() {
-    const remembered = localStorage.getItem("rememberChecked") === "true";
+      const remembered = localStorage.getItem("rememberChecked") === "true";
       if (remembered) {
         this.email = localStorage.getItem("rememberEmail") || "";
         this.rememberMe = true;
       }
     },
     methods: {
+      clearFieldError(field) {
+        if (field === "email") this.emailError = "";
+        if (field === "password") this.passwordError = "";
+        this.formError = "";
+      },
       async handleLogin() {
-      try {
-        const response = await api.post("/api/login", {
-          email: this.email,
-          password: this.password,
-        });
-        
-        if (!response.data?.access_token) {
-          throw new Error("No access token received");
+        this.emailError = "";
+        this.passwordError = "";
+        this.formError = "";
+
+        if (!this.email) {
+          this.emailError = "Email is required.";
+          return;
         }
-
-        const token = response.data.access_token;
-        localStorage.setItem("token", token);
-        localStorage.setItem("refresh_token", response.data.refresh_token || "");
-
-        if (this.rememberMe) {
-          localStorage.setItem("rememberEmail", this.email);
-          localStorage.setItem("rememberChecked", "true");
-        } else {
-          localStorage.removeItem("rememberEmail");
-          localStorage.setItem("rememberChecked", "false");
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+          this.emailError = "Please enter a valid email address.";
+          return;
         }
-
-        const decoded = jwtDecode(token);
-
-        if (!decoded.role) {
-          throw new Error("No role in token");
+        if (!this.password) {
+          this.passwordError = "Password is required.";
+          return;
         }
+        this.loading = true;
+        try {
+          const response = await api.post("/api/login", {
+            email: this.email,
+            password: this.password,
+          });
 
-        localStorage.setItem("role", decoded.role);
+          if (!response.data?.access_token) {
+            throw new Error("No access token received");
+          }
 
-        if (decoded.role === "manager") {
-          this.$router.replace("/inventory-analysis");
-          window.location.reload();
-        } else if (decoded.role === "supplier") {
-          this.$router.replace("/manage-account");
-          window.location.reload();
-        } else {
-          this.$router.push("/login");
+          const token = response.data.access_token;
+          localStorage.setItem("token", token);
+          localStorage.setItem("refresh_token", response.data.refresh_token || "");
+
+          if (this.rememberMe) {
+            localStorage.setItem("rememberEmail", this.email);
+            localStorage.setItem("rememberChecked", "true");
+          } else {
+            localStorage.removeItem("rememberEmail");
+            localStorage.setItem("rememberChecked", "false");
+          }
+
+          const decoded = jwtDecode(token);
+
+          if (!decoded.role) {
+            throw new Error("No role in token");
+          }
+
+          localStorage.setItem("role", decoded.role);
+
+          if (decoded.role === "manager") {
+            this.$router.replace("/inventory-analysis");
+            window.location.reload();
+          } else if (decoded.role === "supplier") {
+            this.$router.replace("/manage-account");
+            window.location.reload();
+          } else {
+            this.$router.push("/login");
+          }
+        } catch (error) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("role");
+          this.formError =
+            error.response?.data?.detail ||
+            error.message ||
+            "Invalid email or password";
+        } finally {
+          this.loading = false;
         }
-
-      } catch (error) {
-        this.errorMessage = error.response?.data?.detail || 
-                          error.message || 
-                          "Invalid email or password";
-      }
-    },
+      },
       goToRegister() {
         this.$router.push("/register");
       },
@@ -149,7 +194,7 @@
 .input-group {
   display: flex;
   flex-direction: column;
-  align-items: center; /* Centers the inputs */
+  align-items: center; 
   width: 100%;
   margin-bottom: 1rem;
 }
@@ -213,7 +258,12 @@ button {
   margin-bottom: 0.5rem;
 }
 
-.login-btn:hover {
+.login-btn[disabled] {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.login-btn:hover:enabled {
   background-color: #0069da;
 }
 
@@ -224,6 +274,24 @@ button {
 
 .register-btn:hover {
   background-color: #616970
+}
+
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 84%;
+  padding-left: 2.0rem;
+}
+
+.form-error {
+  color: #e53e3e;
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-align: left;
+  width: 84%;
+  padding-left: 2.0rem;
 }
 </style>
   
