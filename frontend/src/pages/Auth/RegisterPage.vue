@@ -67,6 +67,7 @@ import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 library.add(faArrowLeft);
 
 export default {
+  name: 'RegisterPage',
   components: {
     FontAwesomeIcon,
   },
@@ -110,9 +111,12 @@ export default {
       this.companyNameError = "";
       this.companyAddressError = "";
 
-      // Validation
       if (!this.full_name) {
         this.fullNameError = "Full name is required.";
+        return;
+      }
+      if (!/^[A-Za-z\s]+$/.test(this.full_name)) {
+        this.fullNameError = "Full name must contain only letters and spaces.";
         return;
       }
       if (!this.company_name) {
@@ -147,7 +151,6 @@ export default {
         this.passwordError = "Password must be at least 8 characters.";
         return;
       }
-      // Add more password rules if needed
 
       this.loading = true;
       try {

@@ -52,6 +52,7 @@
   import { jwtDecode } from "jwt-decode";
 
   export default {
+    name: 'LoginPage',
     data() {
       return {
         email: "",

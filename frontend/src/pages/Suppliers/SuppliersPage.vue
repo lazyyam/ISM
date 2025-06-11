@@ -12,7 +12,10 @@
           />
         </div>
       </div>
-      
+
+      <div v-if="loading" class="loading-message">Loading suppliers...</div>
+      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
       <div class="suppliers-table">
         <table>
           <thead>
@@ -66,7 +69,9 @@
     data() {
       return {
         searchQuery: '',
-        suppliers: []
+        suppliers: [],
+        loading: false,
+        errorMessage: "",
       };
     },
     mounted() {
@@ -88,14 +93,18 @@
     },
     methods: {
       async fetchSuppliers() {
+        this.loading = true;
+        this.errorMessage = "";
         try {
-            const response = await api.get('/api/suppliers');
-            this.suppliers = response.data;
+          const response = await api.get('/api/suppliers');
+          this.suppliers = response.data;
         } catch (error) {
-            console.error("Failed to fetch suppliers:", error);
+          this.suppliers = [];
+          this.errorMessage = "Failed to fetch suppliers. Please try again.";
+        } finally {
+          this.loading = false;
         }
       },
-
     }
   };
   </script>
@@ -244,6 +253,17 @@
   .phone-text {
     color: #2d3748;
     font-size: 14px;
+  }
+
+  .loading-message {
+    color: #2d3748;
+    font-size: 15px;
+    padding: 12px 16px;
+  }
+  .error-message {
+    color: #e53e3e;
+    font-size: 15px;
+    padding: 12px 16px;
   }
 
   /* Hide number on mobile */

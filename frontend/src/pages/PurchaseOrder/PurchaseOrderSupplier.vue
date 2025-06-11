@@ -1,5 +1,16 @@
 <template>
   <div class="purchase-order-container">
+    <SuccessToast
+      v-if="showSuccessToast"
+      :message="toastMessage"
+      @close="showSuccessToast = false"
+    />
+    <ErrorToast
+      v-if="showErrorToast"
+      :message="toastMessage"
+      @close="showErrorToast = false"
+    />
+
     <h1>Purchase Order</h1>
     
     <div class="order-actions">
@@ -11,7 +22,6 @@
           v-model="searchQuery"
         />
       </div>
-      
       <div class="filter-dropdown">
         <select v-model="selectedStatus" class="filter-select">
           <option value="">All Statuses</option>
@@ -21,7 +31,8 @@
         </select>
       </div>
     </div>
-    
+
+    <div v-if="ordersError" class="error-message">{{ ordersError }}</div>
     <div class="order-table">
       <table>
         <thead>
@@ -53,6 +64,9 @@
               </span>
             </td>
           </tr>
+          <tr v-if="filteredOrders.length === 0 && !ordersError">
+            <td colspan="5" style="text-align:center;">No orders found.</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -69,16 +83,20 @@
       <div class="bank-form">
         <div class="form-group">
           <label for="bankName">Bank Name:</label>
-          <input id="bankName" v-model="bankForm.bank_name" class="form-control" />
+          <input id="bankName" v-model="bankForm.bank_name" class="form-control" @input="clearBankFieldError('bank_name')" />
+          <p v-if="bankNameError" class="field-error">{{ bankNameError }}</p>
         </div>
         <div class="form-group">
           <label for="accountNumber">Account Number:</label>
-          <input id="accountNumber" v-model="bankForm.account_number" class="form-control" />
+          <input id="accountNumber" v-model="bankForm.account_number" class="form-control" @input="clearBankFieldError('account_number')" />
+          <p v-if="accountNumberError" class="field-error">{{ accountNumberError }}</p>
         </div>
         <div class="form-group">
           <label for="accountHolder">Account Holder:</label>
-          <input id="accountHolder" v-model="bankForm.account_holder" class="form-control" />
+          <input id="accountHolder" v-model="bankForm.account_holder" class="form-control" @input="clearBankFieldError('account_holder')" />
+          <p v-if="accountHolderError" class="field-error">{{ accountHolderError }}</p>
         </div>
+        <div v-if="bankError" class="error-message">{{ bankError }}</div>
       </div>
       <template v-slot:footer>
         <button class="cancel-btn" @click="isBankModalOpen = false">Cancel</button>
@@ -158,6 +176,7 @@
                   <button class="decline-btn" @click="declineOrder(selectedOrder.id)">Submit Decline</button>
                   <button class="cancel-btn" @click="cancelDecline">Cancel</button>
                 </div>
+                <p v-if="declineError" class="field-error">{{ declineError }}</p>
               </div>
             </div>
             <div v-else-if="selectedOrder.status === 'Paid'" class="status-update">
@@ -212,6 +231,8 @@
 
 <script>
 import BaseModal from "@/components/BaseModal.vue";
+import SuccessToast from "@/components/SuccessToast.vue";
+import ErrorToast from "@/components/ErrorToast.vue";
 import api from "@/services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -219,7 +240,9 @@ import autoTable from "jspdf-autotable";
 export default {
   name: 'PurchaseOrderSupplier',
   components: {
-    BaseModal
+    BaseModal,
+    SuccessToast,
+    ErrorToast
   },
   data() {
     return {
@@ -229,11 +252,13 @@ export default {
         "Pending", "Accepted", "Paid", "Processing", "Delivering", "Delivered", "Declined"
       ],
       orders: [],
+      ordersError: "",
       isDetailModalOpen: false, 
       selectedOrder: null,
       orderItems: [],
       showDecline: false,
       declineMessage: "",
+      declineError: "",
       isBankModalOpen: false,
       bankAccountId: null,
       bankForm: {
@@ -241,6 +266,13 @@ export default {
         account_number: "",
         account_holder: ""
       },
+      bankNameError: "",
+      accountNumberError: "",
+      accountHolderError: "",
+      bankError: "",
+      showSuccessToast: false,
+      showErrorToast: false,
+      toastMessage: ""
     };
   },
   computed: {
@@ -265,12 +297,24 @@ export default {
     this.fetchBankInfo();
   },
   methods: {
+    showToast(msg, type = "success") {
+      this.toastMessage = msg;
+      this.showSuccessToast = type === "success";
+      this.showErrorToast = type === "error";
+      setTimeout(() => {
+        this.showSuccessToast = false;
+        this.showErrorToast = false;
+        this.toastMessage = "";
+      }, 2500);
+    },
     async fetchOrders() {
+      this.ordersError = "";
       try {
         const response = await api.get(`/api/purchase-orders/supplier`);
         this.orders = response.data;
       } catch (error) {
-        console.error('Failed to fetch orders:', error);
+        this.orders = [];
+        this.ordersError = "Failed to fetch orders.";
       }
     },
     formatDate(dateString) {
@@ -288,11 +332,11 @@ export default {
       this.selectedOrder = order;
       this.showDecline = false;
       this.declineMessage = "";
+      this.declineError = "";
       try {
         const response = await api.get(`/api/purchase-orders/${order.id}`);
         const orderData = response.data;
         this.orderItems = orderData.items || [];
-        // Merge status history and other details
         this.selectedOrder.status_history = orderData.status_history || [];
         this.selectedOrder.status = orderData.status;
         this.selectedOrder.total_cost = orderData.total_cost;
@@ -300,7 +344,7 @@ export default {
         this.selectedOrder.order_date = orderData.order_date;
         this.isDetailModalOpen = true;
       } catch (error) {
-        console.error('Failed to fetch order details:', error);
+        this.showToast("Failed to fetch order details.", "error");
       }
     },
     closeModal() {
@@ -309,6 +353,7 @@ export default {
       this.orderItems = [];
       this.showDecline = false;
       this.declineMessage = "";
+      this.declineError = "";
     },
     async updateOrderStatus(orderId, newStatus) {
       try {
@@ -317,13 +362,15 @@ export default {
         });
         await this.viewOrderDetails({ id: orderId });
         await this.fetchOrders();
+        this.showToast("Order status updated!", "success");
       } catch (error) {
-        console.error('Failed to update order status:', error);
+        this.showToast("Failed to update order status.", "error");
       }
     },
     async declineOrder(orderId) {
+      this.declineError = "";
       if (!this.declineMessage.trim()) {
-        alert("Please enter a reason for declining.");
+        this.declineError = "Please enter a reason for declining.";
         return;
       }
       try {
@@ -333,15 +380,18 @@ export default {
         });
         this.showDecline = false;
         this.declineMessage = "";
+        this.declineError = "";
         await this.viewOrderDetails({ id: orderId });
         await this.fetchOrders();
+        this.showToast("Order declined.", "success");
       } catch (error) {
-        console.error('Failed to decline order:', error);
+        this.showToast("Failed to decline order.", "error");
       }
     },
     cancelDecline() {
       this.showDecline = false;
       this.declineMessage = "";
+      this.declineError = "";
     },
     statusClass(status) {
       return {
@@ -355,6 +405,7 @@ export default {
       };
     },
     async fetchBankInfo() {
+      this.bankError = "";
       try {
         const res = await api.get("/api/supplier-bank-accounts/by-supplier");
         if (res.data.length > 0) {
@@ -367,14 +418,48 @@ export default {
           this.bankAccountId = bank.id;
         }
       } catch (e) {
-        // No bank info yet
         this.bankAccountId = null;
+        this.bankError = "Failed to fetch bank info.";
       }
     },
+    clearBankFieldError(field) {
+      if (field === "bank_name") this.bankNameError = "";
+      if (field === "account_number") this.accountNumberError = "";
+      if (field === "account_holder") this.accountHolderError = "";
+      this.bankError = "";
+    },
     async submitBankInfo() {
+      this.bankNameError = "";
+      this.accountNumberError = "";
+      this.accountHolderError = "";
+      this.bankError = "";
+      let valid = true;
+      
+      if (!this.bankForm.bank_name) {
+        this.bankNameError = "Bank name is required.";
+        valid = false;
+      } else if (!/^[A-Za-z\s]+$/.test(this.bankForm.bank_name)) {
+        this.bankNameError = "Bank name must contain only letters and spaces.";
+        valid = false;
+      }
+      if (!this.bankForm.account_number) {
+        this.accountNumberError = "Account number is required.";
+        valid = false;
+      } else if (!/^\d{6,20}$/.test(this.bankForm.account_number)) {
+        this.accountNumberError = "Account number must be 6-20 digits and contain only numbers.";
+        valid = false;
+      }
+      if (!this.bankForm.account_holder) {
+        this.accountHolderError = "Account holder is required.";
+        valid = false;
+      } else if (!/^[A-Za-z\s]+$/.test(this.bankForm.account_holder)) {
+        this.accountHolderError = "Account holder must contain only letters and spaces.";
+        valid = false;
+      }
+      
+      if (!valid) return;
       try {
         if (this.bankAccountId) {
-          // Update existing
           await api.delete(`/api/supplier-bank-accounts/${this.bankAccountId}`);
         }
         await api.post("/api/supplier-bank-accounts/", {
@@ -383,8 +468,9 @@ export default {
         });
         this.isBankModalOpen = false;
         this.fetchBankInfo();
+        this.showToast("Bank info updated!", "success");
       } catch (e) {
-        alert("Failed to update bank info.");
+        this.bankError = "Failed to update bank info.";
       }
     },
     receiptUrl(path) {
@@ -393,10 +479,13 @@ export default {
       return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
     },
     showInvoiceButton(order) {
-      // Show for all except Pending/Declined
       return order && !['Pending', 'Declined'].includes(order.status);
     },
     downloadInvoice(order) {
+      if (!order || !this.orderItems || this.orderItems.length === 0) {
+        this.showToast("No invoice data to export!", "error");
+        return;
+      }
       const doc = new jsPDF();
       doc.setFontSize(20);
       doc.text("INVOICE", 14, 18);
@@ -425,16 +514,15 @@ export default {
         styles: { fontSize: 11 }
       });
 
-      // Total
       const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 88 + 8 * (this.orderItems?.length || 1);
       doc.setFontSize(13);
       doc.text(`Total: ${this.formatCurrency(order.total_cost)}`, 14, finalY + 12);
 
-      // Optional: Footer
       doc.setFontSize(10);
       doc.text("Thank you for your business!", 14, finalY + 24);
 
       doc.save(`invoice_order_${order.id}.pdf`);
+      this.showToast("Invoice downloaded!", "success");
     },
   }
 };
@@ -919,4 +1007,16 @@ td {
   margin-left: 8px;
 }
 
+.error-message {
+  color: #e53e3e;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 100%;
+}
 </style>

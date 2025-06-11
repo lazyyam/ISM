@@ -42,6 +42,7 @@
   library.add(faArrowLeft);
   
   export default {
+    name: 'ForgotPasswordPage',
     components: {
       FontAwesomeIcon,
     },

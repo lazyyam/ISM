@@ -1,30 +1,46 @@
 <template>
   <div class="account-container">
+    <SuccessToast
+      v-if="showSuccessToast"
+      :message="toastMessage"
+      @close="showSuccessToast = false"
+    />
+    <ErrorToast
+      v-if="showErrorToast"
+      :message="toastMessage"
+      @close="showErrorToast = false"
+    />
+
     <h1>Manage Account</h1>
     
     <div class="form-group">
       <label>Full Name</label>
-      <input type="text" v-model="userData.full_name" :disabled="!isEditing" />
+      <input type="text" v-model="userData.full_name" :disabled="!isEditing" @input="clearFieldError('full_name')" />
+      <p v-if="fullNameError" class="field-error">{{ fullNameError }}</p>
     </div>
     
     <div class="form-group">
       <label>Company Name</label>
-      <input type="text" v-model="userData.company_name" :disabled="!isEditing" />
+      <input type="text" v-model="userData.company_name" :disabled="!isEditing" @input="clearFieldError('company_name')" />
+      <p v-if="companyNameError" class="field-error">{{ companyNameError }}</p>
     </div>
     
     <div class="form-group">
       <label>Company Address</label>
-      <input type="text" v-model="userData.company_address" :disabled="!isEditing" />
+      <input type="text" v-model="userData.company_address" :disabled="!isEditing" @input="clearFieldError('company_address')" />
+      <p v-if="companyAddressError" class="field-error">{{ companyAddressError }}</p>
     </div>
     
     <div class="form-group">
       <label>Email</label>
-      <input type="email" v-model="userData.email" :disabled="!isEditing" />
+      <input type="email" v-model="userData.email" :disabled="!isEditing" @input="clearFieldError('email')" />
+      <p v-if="emailError" class="field-error">{{ emailError }}</p>
     </div>
     
     <div class="form-group">
       <label>Phone number</label>
-      <input type="text" v-model="userData.phone_number" :disabled="!isEditing" />
+      <input type="text" v-model="userData.phone_number" :disabled="!isEditing" @input="clearFieldError('phone_number')" />
+      <p v-if="phoneNumberError" class="field-error">{{ phoneNumberError }}</p>
     </div>
     
     <div class="buttons-container">
@@ -48,8 +64,15 @@
 
 <script>
 import api from "@/services/api";
+import SuccessToast from "@/components/SuccessToast.vue";
+import ErrorToast from "@/components/ErrorToast.vue";
 
 export default {
+  name: 'ManageAccountPage',
+  components: {
+    SuccessToast,
+    ErrorToast
+  },
   data() {
     return {
       isEditing: false,
@@ -60,7 +83,15 @@ export default {
         email: "",
         phone_number: ""
       },
-      originalUserData: {}
+      originalUserData: {},
+      fullNameError: "",
+      companyNameError: "",
+      companyAddressError: "",
+      emailError: "",
+      phoneNumberError: "",
+      showSuccessToast: false,
+      showErrorToast: false,
+      toastMessage: ""
     }
   },
 
@@ -81,14 +112,21 @@ export default {
         phone_number: response.data.phone_number
       };
       
-      // Store a copy of the original data
       this.originalUserData = { ...this.userData };
     } catch (error) {
-      console.error('Failed to load user data:', error.response?.data || error.message);
+      this.toastMessage = "Failed to load user data.";
+      this.showErrorToast = true;
     }
   },
   
   methods: {
+    clearFieldError(field) {
+      if (field === "full_name") this.fullNameError = "";
+      if (field === "company_name") this.companyNameError = "";
+      if (field === "company_address") this.companyAddressError = "";
+      if (field === "email") this.emailError = "";
+      if (field === "phone_number") this.phoneNumberError = "";
+    },
     toggleEdit() {
       this.isEditing = true;
       this.originalUserData = { ...this.userData };
@@ -97,9 +135,55 @@ export default {
     cancelEdit() {
       this.userData = { ...this.originalUserData };
       this.isEditing = false;
+      this.clearAllFieldErrors();
+    },
+
+    clearAllFieldErrors() {
+      this.fullNameError = "";
+      this.companyNameError = "";
+      this.companyAddressError = "";
+      this.emailError = "";
+      this.phoneNumberError = "";
+    },
+    
+    validateFields() {
+      let valid = true;
+      this.clearAllFieldErrors();
+
+      if (!this.userData.full_name) {
+        this.fullNameError = "Full name is required.";
+        valid = false;
+      } else if (!/^[A-Za-z\s]+$/.test(this.userData.full_name)) {
+        this.fullNameError = "Full name must contain only letters and spaces.";
+        valid = false;
+      }
+      if (!this.userData.company_name) {
+        this.companyNameError = "Company name is required.";
+        valid = false;
+      }
+      if (!this.userData.company_address) {
+        this.companyAddressError = "Company address is required.";
+        valid = false;
+      }
+      if (!this.userData.email) {
+        this.emailError = "Email is required.";
+        valid = false;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.userData.email)) {
+        this.emailError = "Please enter a valid email address.";
+        valid = false;
+      }
+      if (!this.userData.phone_number) {
+        this.phoneNumberError = "Phone number is required.";
+        valid = false;
+      } else if (!/^\d{9,15}$/.test(this.userData.phone_number.replace(/\D/g, ""))) {
+        this.phoneNumberError = "Please enter a valid phone number (9-15 digits).";
+        valid = false;
+      }
+      return valid;
     },
     
     async saveChanges() {
+      if (!this.validateFields()) return;
       try {
         const token = localStorage.getItem('token');
 
@@ -115,15 +199,15 @@ export default {
           }
         });
 
-        console.log('User updated:', response.data);
-        alert('Account information updated successfully!');
+        console.log(response.data);
+        this.toastMessage = 'Account information updated successfully!';
+        this.showSuccessToast = true;
         
-        // Update original data after successful save
         this.originalUserData = { ...this.userData };
         this.isEditing = false;
       } catch (error) {
-        console.error('Error updating account:', error.response?.data || error.message);
-        alert('Failed to update account information.');
+        this.toastMessage = error.response?.data?.detail || 'Failed to update account information.';
+        this.showErrorToast = true;
       }
     }
   }
@@ -215,5 +299,13 @@ input:disabled {
 
 .cancel-btn:hover {
   background-color: #cbd5e0;
+}
+
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 100%;
 }
 </style>

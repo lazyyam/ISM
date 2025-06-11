@@ -1,5 +1,16 @@
 <template>
   <div class="reports-container">
+    <SuccessToast
+      v-if="showSuccessToast"
+      :message="toastMessage"
+      @close="showSuccessToast = false"
+    />
+    <ErrorToast
+      v-if="showErrorToast"
+      :message="toastMessage"
+      @close="showErrorToast = false"
+    />
+
     <h1>Reports</h1>
 
     <div class="reports-actions">
@@ -51,9 +62,13 @@
       </div>
     </div>
 
+    <p v-if="yearError" class="field-error">{{ yearError }}</p>
+
     <!-- Sales History Section -->
     <div class="report-section" ref="salesSection">
       <h2>Sales History</h2>
+      <div v-if="loadingSales" class="loading-message">Loading sales...</div>
+      <div v-if="salesError" class="error-message">{{ salesError }}</div>
       <div class="report-table">
         <table>
           <thead>
@@ -71,6 +86,9 @@
               <td>{{ sale.quantity }}</td>
               <td>{{ sale.remarks || '-' }}</td>
             </tr>
+            <tr v-if="!loadingSales && !salesError && filteredSales.length === 0">
+              <td colspan="4" style="text-align:center;">No sales data found.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -79,6 +97,8 @@
     <!-- Restock/Adjustment History Section -->
     <div class="report-section" ref="restockSection">
       <h2>Restock & Adjustment History</h2>
+      <div v-if="loadingInventory" class="loading-message">Loading inventory...</div>
+      <div v-if="inventoryError" class="error-message">{{ inventoryError }}</div>
       <div class="report-table">
         <table>
           <thead>
@@ -98,6 +118,9 @@
               <td>{{ entry.change_amount }}</td>
               <td>{{ entry.batch_id || '-' }}</td>
             </tr>
+            <tr v-if="!loadingInventory && !inventoryError && filteredInventory.length === 0">
+              <td colspan="5" style="text-align:center;">No inventory data found.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -109,9 +132,15 @@
 import api from "@/services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import SuccessToast from "@/components/SuccessToast.vue";
+import ErrorToast from "@/components/ErrorToast.vue";
 
 export default {
   name: 'ReportsPage',
+  components: {
+    SuccessToast,
+    ErrorToast,
+  },
   data() {
     const savedViewMode = localStorage.getItem('reportsViewMode') || "daily";
     const today = new Date().toLocaleDateString('en-CA');
@@ -124,6 +153,14 @@ export default {
       selectedYear: thisYear,
       sales: [],
       inventory: [],
+      loadingSales: false,
+      loadingInventory: false,
+      salesError: "",
+      inventoryError: "",
+      yearError: "",
+      showSuccessToast: false,
+      showErrorToast: false,
+      toastMessage: "",
     };
   },
   watch: {
@@ -155,7 +192,7 @@ export default {
         return this.inventory.filter(e => e.created_at && e.created_at.startsWith(this.selectedYear));
       }
       return this.inventory;
-    }
+    },
   },
   mounted() {
     this.fetchSales();
@@ -163,22 +200,62 @@ export default {
   },
   methods: {
     async fetchSales() {
+      this.loadingSales = true;
+      this.salesError = "";
       try {
         const res = await api.get("/api/sales/");
         this.sales = res.data;
       } catch (e) {
         this.sales = [];
+        this.salesError = "Failed to load sales data.";
+      } finally {
+        this.loadingSales = false;
       }
     },
     async fetchInventory() {
+      this.loadingInventory = true;
+      this.inventoryError = "";
       try {
         const res = await api.get("/api/inventory/");
         this.inventory = res.data;
       } catch (e) {
         this.inventory = [];
+        this.inventoryError = "Failed to load inventory data.";
+      } finally {
+        this.loadingInventory = false;
       }
     },
+    validateYear() {
+      if (this.viewMode === "yearly") {
+        if (!this.selectedYear || isNaN(this.selectedYear) || this.selectedYear < 2000 || this.selectedYear > 2100) {
+          this.yearError = "Please enter a valid year (2000-2100).";
+          return false;
+        }
+      }
+      this.yearError = "";
+      return true;
+    },
+    showToastMessage(msg, type = "error") {
+      this.toastMessage = msg;
+      if (type === "success") {
+        this.showSuccessToast = true;
+        this.showErrorToast = false;
+      } else {
+        this.showErrorToast = true;
+        this.showSuccessToast = false;
+      }
+      setTimeout(() => {
+        this.showSuccessToast = false;
+        this.showErrorToast = false;
+        this.toastMessage = "";
+      }, 2500);
+    },
     downloadSalesPDF() {
+      if (!this.validateYear()) return;
+      if (this.filteredSales.length === 0) {
+        this.showToastMessage("No sales data to export!", "error");
+        return;
+      }
       const doc = new jsPDF();
       doc.setFontSize(18);
       doc.text("Sales Report", 14, 18);
@@ -200,8 +277,14 @@ export default {
       });
 
       doc.save(`sales_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
+      this.showToastMessage("PDF downloaded!", "success");
     },
     downloadInventoryPDF() {
+      if (!this.validateYear()) return;
+      if (this.filteredInventory.length === 0) {
+        this.showToastMessage("No inventory data to export!", "error");
+        return;
+      }
       const doc = new jsPDF();
       doc.setFontSize(18);
       doc.text("Restock & Adjustment Report", 14, 18);
@@ -224,6 +307,7 @@ export default {
       });
 
       doc.save(`restock_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
+      this.showToastMessage("PDF downloaded!", "success");
     },
     getReportPeriod() {
       if (this.viewMode === "daily") return this.selectedDate;
@@ -382,5 +466,16 @@ th {
 td {
   color: #2d3748;
   font-size: 14px;
+}
+
+.loading-message {
+  color: #2d3748;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.error-message, .field-error {
+  color: #e53e3e;
+  font-size: 15px;
+  padding: 12px 16px;
 }
 </style>

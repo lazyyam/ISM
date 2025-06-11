@@ -50,6 +50,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 library.add(faArrowLeft);
 
 export default {
+  name: 'ResetPasswordPage',
   components: {
     FontAwesomeIcon,
   },

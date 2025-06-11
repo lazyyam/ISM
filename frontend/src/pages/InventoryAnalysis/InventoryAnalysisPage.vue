@@ -32,7 +32,12 @@
     <!-- Chart Section -->
     <div class="chart-section">
       <div class="chart-container">
-        <canvas id="inventoryChart" ref="chartCanvas"></canvas>
+        <div v-if="loadingInventory">Loading chart...</div>
+        <div v-else-if="inventoryError" class="error-message">{{ inventoryError }}</div>
+        <div v-else>
+          <canvas id="inventoryChart" ref="chartCanvas"></canvas>
+        </div>
+        <div v-if="chartError" class="error-message">{{ chartError }}</div>
       </div>
     </div>
 
@@ -41,7 +46,9 @@
       <!-- Top Selling Products -->
       <div class="performance-card">
         <h2>Top Selling Products</h2>
-        <div class="product-table">
+        <div v-if="loadingSales">Loading...</div>
+        <div v-else-if="salesError" class="error-message">{{ salesError }}</div>
+        <div v-else class="product-table">
           <table>
             <thead>
               <tr>
@@ -54,6 +61,9 @@
                 <td>{{ product.name }}</td>
                 <td>{{ product.quantity }}</td>
               </tr>
+              <tr v-if="topSellingProducts.length === 0">
+                <td colspan="2" style="text-align:center;">No data available.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -61,7 +71,9 @@
       <!-- Least Selling Products -->
       <div class="performance-card">
         <h2>Least Selling Products</h2>
-        <div class="product-table">
+        <div v-if="loadingSales">Loading...</div>
+        <div v-else-if="salesError" class="error-message">{{ salesError }}</div>
+        <div v-else class="product-table">
           <table>
             <thead>
               <tr>
@@ -74,6 +86,9 @@
                 <td>{{ product.name }}</td>
                 <td>{{ product.quantity }}</td>
               </tr>
+              <tr v-if="leastSellingProducts.length === 0">
+                <td colspan="2" style="text-align:center;">No data available.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -84,7 +99,9 @@
     <div class="stock-alert-section">
       <div class="stock-alert-card">
         <h2>Stock Alert</h2>
-        <div class="alert-table">
+        <div v-if="loadingProducts">Loading...</div>
+        <div v-else-if="productsError" class="error-message">{{ productsError }}</div>
+        <div v-else class="alert-table">
           <table>
             <thead>
               <tr>
@@ -103,6 +120,9 @@
                 <td>{{ alert.alertAmount }}</td>
                 <td>{{ alert.status }}</td>
               </tr>
+              <tr v-if="stockAlerts.length === 0">
+                <td colspan="5" style="text-align:center;">No stock alerts.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -112,7 +132,9 @@
     <!-- Expiry Alert Section -->
     <div class="expiry-alert-card">
       <h2>Expiry Date Alerts</h2>
-      <div class="expiry-table">
+      <div v-if="loadingProducts">Loading...</div>
+      <div v-else-if="productsError" class="error-message">{{ productsError }}</div>
+      <div v-else class="expiry-table">
         <table>
           <thead>
             <tr>
@@ -134,6 +156,9 @@
                   {{ item.status }}
                 </span>
               </td>
+            </tr>
+            <tr v-if="expiryAlerts.length === 0">
+              <td colspan="5" style="text-align:center;">No expiry alerts.</td>
             </tr>
           </tbody>
         </table>
@@ -160,23 +185,27 @@ export default {
       inventory: [],
       stockAlerts: [],
       expiryAlerts: [],
+      salesError: "",
+      inventoryError: "",
+      productsError: "",
+      loadingSales: false,
+      loadingInventory: false,
+      loadingProducts: false,
+      chartError: "",
     };
   },
   computed: {
     totalSalesQuantity() {
-      // Sum all sales transactions (quantity sold)
       return this.inventory
         .filter(e => e.transaction_type === "sale")
         .reduce((sum, e) => sum + Math.abs(Number(e.change_amount) || 0), 0);
     },
     totalRestockedQuantity() {
-      // Sum all restock transactions (quantity added)
       return this.inventory
         .filter(e => e.transaction_type === "restock")
         .reduce((sum, e) => sum + Number(e.change_amount || 0), 0);
     },
     totalAdjustedQuantity() {
-      // Sum all adjustment transactions (quantity adjusted)
       return this.inventory
         .filter(e => e.transaction_type === "manual_add" || e.transaction_type === "adjustment")
         .reduce((sum, e) => sum + Number(e.change_amount || 0), 0);
@@ -191,7 +220,6 @@ export default {
       return this.inventory.filter(e => e.transaction_type === "adjustment").length;
     },
     chartDataFromInventory() {
-      // Group by YYYY-MM (month)
       const incomingTypes = ["restock", "manual_add"];
       const outgoingTypes = ["sale", "adjustment"];
       const grouped = {};
@@ -211,7 +239,6 @@ export default {
         }
       });
 
-      // Sort months
       const months = Object.keys(grouped).sort();
       return {
         labels: months,
@@ -240,7 +267,11 @@ export default {
       this.isMounted = true;
       this.chartInitPromise = this.$nextTick().then(() => {
         if (this.isMounted) {
-          this.initChart();
+          try {
+            this.initChart();
+          } catch (e) {
+            this.chartError = "Failed to render chart.";
+          }
         }
       });
     });
@@ -252,6 +283,8 @@ export default {
   },
   methods: {
     async fetchSales() {
+      this.loadingSales = true;
+      this.salesError = "";
       try {
         const res = await api.get("/api/sales/");
         this.sales = res.data;
@@ -260,21 +293,30 @@ export default {
         this.sales = [];
         this.topSellingProducts = [];
         this.leastSellingProducts = [];
+        this.salesError = "Failed to load sales data.";
+      } finally {
+        this.loadingSales = false;
       }
     },
     async fetchInventory() {
+      this.loadingInventory = true;
+      this.inventoryError = "";
       try {
         const res = await api.get("/api/inventory/");
         this.inventory = res.data;
       } catch (e) {
         this.inventory = [];
+        this.inventoryError = "Failed to load inventory data.";
+      } finally {
+        this.loadingInventory = false;
       }
-      // Only update chart if it exists
       if (this.chart) {
         this.updateChart();
       }
     },
     async fetchProducts() {
+      this.loadingProducts = true;
+      this.productsError = "";
       try {
         const res = await api.get("/api/products/");
         this.products = res.data;
@@ -284,12 +326,14 @@ export default {
         this.products = [];
         this.stockAlerts = [];
         this.expiryAlerts = [];
+        this.productsError = "Failed to load products data.";
+      } finally {
+        this.loadingProducts = false;
       }
     },
     updateStockAlerts() {
       this.stockAlerts = this.products
         .map(product => {
-          // Calculate current stock
           const currentStock = (product.inventory || []).reduce(
             (sum, entry) => sum + Number(entry.change_amount || 0),
             0
@@ -305,7 +349,6 @@ export default {
         .filter(alert => alert.status !== "OK");
     },
     updateProductSalesStats() {
-      // Group sales by product_id and sum quantity
       const productSalesMap = {};
       this.sales.forEach(sale => {
         if (!productSalesMap[sale.product_id]) {
@@ -317,10 +360,8 @@ export default {
         productSalesMap[sale.product_id].quantity += Number(sale.quantity) || 0;
       });
 
-      // Convert to array
       const productSalesArr = Object.values(productSalesMap);
 
-      // Sort descending for top, ascending for least
       this.topSellingProducts = [...productSalesArr].sort((a, b) => b.quantity - a.quantity).slice(0, 3);
       this.leastSellingProducts = [...productSalesArr].sort((a, b) => a.quantity - b.quantity).slice(0, 3);
     },
@@ -328,7 +369,7 @@ export default {
     updateExpiryAlerts() {
       const today = new Date();
       const soon = new Date();
-      soon.setDate(today.getDate() + 30); // Next 30 days
+      soon.setDate(today.getDate() + 30); 
 
       const alerts = [];
       this.products.forEach(product => {
@@ -346,7 +387,6 @@ export default {
           }
         });
       });
-      // Sort: expired first, then soonest expiry
       alerts.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
       this.expiryAlerts = alerts;
     },
@@ -455,7 +495,6 @@ h2 {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   padding: 20px;
-  height: 300px;
 }
 
 .performance-section {
@@ -519,6 +558,11 @@ td {
 .expiry-table {
   width: 100%;
   padding: 0 0 16px 0;
+}
+.error-message {
+  color: #e53e3e;
+  padding: 12px 16px;
+  font-size: 15px;
 }
 
 @media (max-width: 768px) {
