@@ -1,5 +1,16 @@
 <template>
   <div class="catalog-container">
+    <SuccessToast
+      v-if="showSuccessToast"
+      :message="toastMessage"
+      @close="showSuccessToast = false"
+    />
+    <ErrorToast
+      v-if="showErrorToast"
+      :message="toastMessage"
+      @close="showErrorToast = false"
+    />
+
     <h1>Product Catalog</h1>
     
     <div class="catalog-actions">
@@ -19,7 +30,8 @@
         </select>
       </div>
     </div>
-    
+
+    <div v-if="productsError" class="error-message">{{ productsError }}</div>
     <div class="product-table">
       <table>
         <thead>
@@ -52,7 +64,7 @@
                 </button>
                 <button 
                   class="delete-btn" 
-                  @click="deleteProduct(product.id)"
+                  @click="confirmDeleteProduct(product.id)"
                   title="Delete product"
                 >
                   <i class="delete-icon"></i>
@@ -86,7 +98,9 @@
             type="text" 
             v-model="formData.name" 
             class="form-control"
+            @input="clearFieldError('name')"
           />
+          <p v-if="nameError" class="field-error">{{ nameError }}</p>
         </div>
         
         <div class="form-group">
@@ -100,7 +114,9 @@
             :taggable="true"
             @new="addCategory"
             class="form-control category-vselect"
+            @input="clearFieldError('category')"
           />
+          <p v-if="categoryError" class="field-error">{{ categoryError }}</p>
         </div>
         
         <div class="form-group">
@@ -110,7 +126,9 @@
             type="text" 
             v-model="formData.code" 
             class="form-control"
+            @input="clearFieldError('code')"
           />
+          <p v-if="codeError" class="field-error">{{ codeError }}</p>
         </div>
         
         <div class="form-group">
@@ -121,7 +139,9 @@
             step="0.01" 
             v-model="formData.cost" 
             class="form-control"
+            @input="clearFieldError('cost')"
           />
+          <p v-if="costError" class="field-error">{{ costError }}</p>
         </div>
         
         <div class="form-group">
@@ -131,7 +151,9 @@
             type="number" 
             v-model="formData.quantity_available" 
             class="form-control"
+            @input="clearFieldError('quantity_available')"
           />
+          <p v-if="quantityError" class="field-error">{{ quantityError }}</p>
         </div>
       </div>
       
@@ -142,11 +164,22 @@
         </button>
       </template>
     </BaseModal>
+
+    <!-- Delete Modal -->
+    <DeleteModal
+      :isOpen="showDeleteModal"
+      @close="cancelDeleteProduct"
+      @confirm="deleteProductConfirmed"
+      message="Are you sure you want to delete this product?"
+    />
   </div>
 </template>
 
 <script>
 import BaseModal from '@/components/BaseModal.vue';
+import DeleteModal from '@/components/DeleteModal.vue';
+import SuccessToast from "@/components/SuccessToast.vue";
+import ErrorToast from "@/components/ErrorToast.vue";
 import api from "@/services/api";
 import vSelect from "vue-select";
 import "vue-select/dist/vue-select.css";
@@ -155,6 +188,9 @@ export default {
   name: 'ProductCatalog',
   components: {
     BaseModal,
+    DeleteModal,
+    SuccessToast,
+    ErrorToast,
     vSelect
   },
   data() {
@@ -164,6 +200,8 @@ export default {
       isModalOpen: false,
       isEditing: false,
       currentProductId: null,
+      showDeleteModal: false,
+      productIdToDelete: null,
       formData: {
         name: '',
         category: '',
@@ -181,7 +219,16 @@ export default {
         "Chips & Crackers", "Traditional Snacks", "Detergents", "Cleaning Supplies", "Tissues & Towels",
         "Trash Bags", "Soap & Body Wash", "Shampoo & Hair Care", "Toothpaste", "Sanitary Products", "Diapers",
         "Baby Food", "Baby Wipes", "Pet Food", "Pet Grooming", "Others"
-      ]
+      ],
+      productsError: "",
+      nameError: "",
+      categoryError: "",
+      codeError: "",
+      costError: "",
+      quantityError: "",
+      showSuccessToast: false,
+      showErrorToast: false,
+      toastMessage: ""
     };
   },
   mounted() {
@@ -210,6 +257,16 @@ export default {
     }
   },
   methods: {
+    showToast(msg, type = "success") {
+      this.toastMessage = msg;
+      this.showSuccessToast = type === "success";
+      this.showErrorToast = type === "error";
+      setTimeout(() => {
+        this.showSuccessToast = false;
+        this.showErrorToast = false;
+        this.toastMessage = "";
+      }, 2500);
+    },
     addCategory(newCategory) {
       if (!this.categoryOptions.includes(newCategory)) {
         this.categoryOptions.push(newCategory);
@@ -226,6 +283,7 @@ export default {
       };
       this.currentProductId = null;
       this.isEditing = false;
+      this.clearAllFieldErrors();
     },
     openAddModal() {
       this.resetForm();
@@ -242,43 +300,131 @@ export default {
         quantity_available: product.quantity_available
       };
       this.isModalOpen = true;
+      this.clearAllFieldErrors();
     },
     closeModal() {
       this.isModalOpen = false;
       setTimeout(this.resetForm, 300);
     },
     async fetchProducts() {
+      this.productsError = "";
       try {
         const response = await api.get('/api/supplier-products');
         this.products = response.data;
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        this.products = [];
+        this.productsError = "Failed to fetch products.";
       }
     },
+    clearFieldError(field) {
+      if (field === "name") this.nameError = "";
+      if (field === "category") this.categoryError = "";
+      if (field === "code") this.codeError = "";
+      if (field === "cost") this.costError = "";
+      if (field === "quantity_available") this.quantityError = "";
+    },
+    clearAllFieldErrors() {
+      this.nameError = "";
+      this.categoryError = "";
+      this.codeError = "";
+      this.costError = "";
+      this.quantityError = "";
+    },
+    validateForm() {
+      let valid = true;
+      this.clearAllFieldErrors();
+
+      if (!this.formData.name) {
+        this.nameError = "Product name is required.";
+        valid = false;
+      } else if (
+        this.products.some(
+          p =>
+            p.name.trim().toLowerCase() === this.formData.name.trim().toLowerCase() &&
+            (!this.isEditing || p.id !== this.currentProductId)
+        )
+      ) {
+        this.nameError = "Product name must be unique.";
+        valid = false;
+      }
+
+      if (!this.formData.category) {
+        this.categoryError = "Category is required.";
+        valid = false;
+      }
+
+      if (!this.formData.code) {
+        this.codeError = "Product code is required.";
+        valid = false;
+      } else if (
+        this.products.some(
+          p =>
+            p.code.trim().toLowerCase() === this.formData.code.trim().toLowerCase() &&
+            (!this.isEditing || p.id !== this.currentProductId)
+        )
+      ) {
+        this.codeError = "Product code must be unique.";
+        valid = false;
+      }
+
+      if (!this.formData.cost && this.formData.cost !== 0) {
+        this.costError = "Cost is required.";
+        valid = false;
+      } else if (isNaN(this.formData.cost) || Number(this.formData.cost) < 0) {
+        this.costError = "Cost must be a non-negative number.";
+        valid = false;
+      }
+
+      if (
+        this.formData.quantity_available === "" ||
+        this.formData.quantity_available === null
+      ) {
+        this.quantityError = "Quantity is required.";
+        valid = false;
+      } else if (
+        isNaN(this.formData.quantity_available) ||
+        Number(this.formData.quantity_available) < 0
+      ) {
+        this.quantityError = "Quantity must be a non-negative number.";
+        valid = false;
+      }
+      return valid;
+    },
     async submitForm() {
+      if (!this.validateForm()) return;
       try {
         if (this.isEditing) {
-          // Update product
           await api.put(`/api/supplier-products/${this.currentProductId}`, this.formData);
+          this.showToast("Product updated successfully!", "success");
         } else {
-          // Create new product
           await api.post('/api/supplier-products', this.formData);
+          this.showToast("Product added successfully!", "success");
         }
         this.closeModal();
         this.fetchProducts();
       } catch (error) {
-        console.error('Failed to save product:', error);
-      } 
-    },
-    async deleteProduct(product_id) {
-      if (confirm('Are you sure you want to delete this product?')) {
-        try {
-          await api.delete(`/api/supplier-products/${product_id}`);
-          this.fetchProducts();
-        } catch (error) {
-          console.error('Failed to delete product:', error);
-        }
+        this.showToast("Failed to save product.", "error");
       }
+    },
+    confirmDeleteProduct(productId) {
+      this.productIdToDelete = productId;
+      this.showDeleteModal = true;
+    },
+    async deleteProductConfirmed() {
+      try {
+        await api.delete(`/api/supplier-products/${this.productIdToDelete}`);
+        this.fetchProducts();
+        this.showToast("Product deleted.", "success");
+      } catch (error) {
+        this.showToast("Failed to delete product.", "error");
+      } finally {
+        this.showDeleteModal = false;
+        this.productIdToDelete = null;
+      }
+    },
+    cancelDeleteProduct() {
+      this.showDeleteModal = false;
+      this.productIdToDelete = null;
     }
   }
 };
@@ -462,7 +608,6 @@ td {
   background-repeat: no-repeat;
 }
 
-/* Form Styles */
 .product-form {
   width: 100%;
 }
@@ -524,5 +669,18 @@ td {
   font-size: 14px;
   background: white;
   min-width: 180px;
+}
+
+.error-message {
+  color: #e53e3e;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 100%;
 }
 </style>

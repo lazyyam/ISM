@@ -1,7 +1,17 @@
 <template>
     <div class="product-container">
+      <SuccessToast
+        v-if="showSuccessToast"
+        :message="toastMessage"
+        @close="showSuccessToast = false"
+      />
+      <ErrorToast
+        v-if="showErrorToast"
+        :message="toastMessage"
+        @close="showErrorToast = false"
+      />
+
       <h1>Product</h1>
-      
       <div class="product-actions">
         <div class="search-bar">
           <i class="search-icon"></i>
@@ -11,7 +21,6 @@
             v-model="searchQuery"
           />
         </div>
-        
         <div class="filter-dropdown">
           <select v-model="selectedCategory" class="filter-select">
             <option value="">All Categories</option>
@@ -20,6 +29,7 @@
         </div>
       </div>
       
+      <div v-if="productsError" class="error-message">{{ productsError }}</div>
       <div class="product-table">
         <table>
           <thead>
@@ -38,7 +48,6 @@
           </thead>
           <tbody>
             <template v-for="(product, index) in filteredProducts" :key="product.id">
-              <!-- Main Product Row -->
               <tr :class="{'expanded': expandedProductId === product.id}">
                 <td>{{ index + 1 }}</td>
                 <td>{{ product.name }}</td>
@@ -75,7 +84,7 @@
                     </button>
                     <button 
                       class="delete-btn" 
-                      @click="deleteProduct(product.id)"
+                      @click="confirmDeleteProduct(product.id)"
                       title="Delete product"
                     >
                       <i class="delete-icon"></i>
@@ -111,7 +120,7 @@
                             <button class="batch-edit-btn" @click="openBatchEditModal(product.id, batch)">
                               <i class="edit-icon"></i>
                             </button>
-                            <button class="batch-delete-btn" @click="deleteBatch(product.id, batch.batch_id)">
+                            <button class="batch-delete-btn" @click="confirmDeleteBatch(product.id, batch.batch_id)">
                               <i class="delete-icon"></i>
                             </button>
                           </div>
@@ -132,13 +141,14 @@
             </template>
           </tbody>
           <tr v-if="filteredProducts.length === 0">
-            <td colspan="7" style="text-align: center;">No products found.</td>
+            <td colspan="10" style="text-align: center;">No products found.</td>
           </tr>
         </table>
         <SalesModal
           v-if="isSalesModalOpen"
           :product="salesProduct"
           @close="closeSalesModal"
+          @sale-success="showToast('Sale completed successfully!', 'success')"
         />
       </div>
       
@@ -161,9 +171,10 @@
               type="text" 
               v-model="formData.name" 
               class="form-control"
+              @input="clearFieldError('name')"
             />
+            <p v-if="nameError" class="field-error">{{ nameError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productCategory">Product Category:</label>
             <v-select
@@ -175,9 +186,10 @@
               :taggable="true"
               @new="addCategory"
               class="form-control category-vselect"
+              @input="clearFieldError('category')"
             />
+            <p v-if="categoryError" class="field-error">{{ categoryError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productCode">Product Code:</label>
             <input 
@@ -185,9 +197,10 @@
               type="text" 
               v-model="formData.code" 
               class="form-control"
+              @input="clearFieldError('code')"
             />
+            <p v-if="codeError" class="field-error">{{ codeError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productCost">Product Cost:</label>
             <input 
@@ -196,9 +209,10 @@
               step="0.01" 
               v-model="formData.cost" 
               class="form-control"
+              @input="clearFieldError('cost')"
             />
+            <p v-if="costError" class="field-error">{{ costError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productRetailPrice">Product Retail Price:</label>
             <input 
@@ -207,9 +221,10 @@
               step="0.01" 
               v-model="formData.retail_price" 
               class="form-control"
+              @input="clearFieldError('retail_price')"
             />
+            <p v-if="retailPriceError" class="field-error">{{ retailPriceError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productThreshold">Stock Threshold:</label>
             <input 
@@ -217,9 +232,10 @@
               type="number" 
               v-model="formData.stock_threshold" 
               class="form-control"
+              @input="clearFieldError('stock_threshold')"
             />
+            <p v-if="thresholdError" class="field-error">{{ thresholdError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="productQuantity">Product Quantity:</label>
             <input 
@@ -232,13 +248,20 @@
             <small class="form-text">Total quantity is calculated from batches</small>
           </div>
         </div>
-        
         <template v-slot:footer>
           <button class="submit-btn" @click="submitForm">
             {{ isEditing ? 'Update' : 'Add' }}
           </button>
         </template>
       </BaseModal>
+
+      <!-- Delete Modal -->
+      <DeleteModal
+        :isOpen="showDeleteModal"
+        @close="cancelDeleteProduct"
+        @confirm="deleteProductConfirmed"
+        message="Are you sure you want to delete this product?"
+      />
       
       <!-- Batch Modal -->
       <BaseModal
@@ -254,9 +277,10 @@
               type="number" 
               v-model="batchFormData.quantity" 
               class="form-control"
+              @input="clearBatchFieldError('quantity')"
             />
+            <p v-if="batchQuantityError" class="field-error">{{ batchQuantityError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="expiryDate">Expiry Date:</label>
             <input 
@@ -264,9 +288,10 @@
               type="date" 
               v-model="batchFormData.expiry_date" 
               class="form-control"
+              @input="clearBatchFieldError('expiry_date')"
             />
+            <p v-if="batchExpiryError" class="field-error">{{ batchExpiryError }}</p>
           </div>
-          
           <div class="form-group">
             <label for="receivedDate">Received Date:</label>
             <input 
@@ -274,7 +299,9 @@
               type="date" 
               v-model="batchFormData.received_date" 
               class="form-control"
+              @input="clearBatchFieldError('received_date')"
             />
+            <p v-if="batchReceivedError" class="field-error">{{ batchReceivedError }}</p>
           </div>
         </div>
         
@@ -284,60 +311,23 @@
           </button>
         </template>
       </BaseModal>
-      
-      <!-- Sell Batch Modal -->
-      <BaseModal
-        :isOpen="isSellModalOpen"
-        title="Sell Product"
-        @close="closeSellModal"
-      >
-        <div class="product-form">      
-          <div class="form-group">
-            <label for="sellQuantity">Quantity to Sell:</label>
-            <input 
-              id="sellQuantity" 
-              type="number" 
-              v-model="sellFormData.quantity" 
-              class="form-control"
-              :max="sellFormData.maxQuantity"
-            />
-            <small class="form-text">Available: {{ sellFormData.maxQuantity }}</small>
-          </div>
-          
-          <div class="form-group">
-            <label for="sellPrice">Selling Price:</label>
-            <input 
-              id="sellPrice" 
-              type="number" 
-              step="0.01" 
-              v-model="sellFormData.price" 
-              class="form-control"
-            />
-          </div>
-          
-          <div class="form-group">
-            <label for="sellDate">Sell Date:</label>
-            <input 
-              id="sellDate" 
-              type="date" 
-              v-model="sellFormData.sell_date" 
-              class="form-control"
-            />
-          </div>
-        </div>
-        
-        <template v-slot:footer>
-          <button class="submit-btn" @click="submitSellForm">
-            Complete Sale
-          </button>
-        </template>
-      </BaseModal>
+
+      <!-- Delete Batch Modal -->
+      <DeleteModal
+        :isOpen="showDeleteBatchModal"
+        @close="cancelDeleteBatch"
+        @confirm="deleteBatchConfirmed"
+        message="Are you sure you want to delete this batch?"
+      />
     </div>
   </template>
   
   <script>
   import BaseModal from '@/components/BaseModal.vue';
+  import DeleteModal from '@/components/DeleteModal.vue';
   import SalesModal from '@/components/SalesModal.vue';
+  import SuccessToast from "@/components/SuccessToast.vue";
+  import ErrorToast from "@/components/ErrorToast.vue";
   import api from "@/services/api";
   import vSelect from "vue-select";
   import "vue-select/dist/vue-select.css";
@@ -346,7 +336,10 @@
     name: 'ProductPage',
     components: {
       BaseModal,
+      DeleteModal,
       SalesModal,
+      SuccessToast,
+      ErrorToast,
       vSelect
     },
     data() {
@@ -363,6 +356,21 @@
         expandedProductId: null,
         currentProductId: null,
         currentBatchId: null,
+        showDeleteModal: false,
+        productIdToDelete: null,
+        showDeleteBatchModal: false,
+        batchToDelete: { product_id: null, batch_id: null },
+        productsError: "",
+        nameError: "",
+        categoryError: "",
+        codeError: "",
+        costError: "",
+        retailPriceError: "",
+        thresholdError: "",
+        batchQuantityError: "",
+        batchExpiryError: "",
+        batchReceivedError: "",
+        products: [],
         formData: {
           name: '',
           category: '',
@@ -386,7 +394,6 @@
           product_id: null,
           batch_id: null
         },
-        products: [],
         categoryOptions: [
           "Vegetables", "Fruits", "Herbs & Spices", "Poultry", "Beef & Lamb", "Fish & Seafood", "Frozen Meat",
           "Milk", "Cheese", "Eggs", "Yogurt", "Bread", "Cakes & Pastries", "Buns & Rolls", "Canned Food",
@@ -397,6 +404,9 @@
           "Trash Bags", "Soap & Body Wash", "Shampoo & Hair Care", "Toothpaste", "Sanitary Products", "Diapers",
           "Baby Food", "Baby Wipes", "Pet Food", "Pet Grooming", "Others"
         ],
+        showSuccessToast: false,
+        showErrorToast: false,
+        toastMessage: ""
       };
     },
     mounted() {
@@ -428,6 +438,16 @@
       }
     },
     methods: {
+      showToast(msg, type = "success") {
+        this.toastMessage = msg;
+        this.showSuccessToast = type === "success";
+        this.showErrorToast = type === "error";
+        setTimeout(() => {
+          this.showSuccessToast = false;
+          this.showErrorToast = false;
+          this.toastMessage = "";
+        }, 2500);
+      },
       addCategory(newCategory) {
         if (!this.categoryOptions.includes(newCategory)) {
           this.categoryOptions.push(newCategory);
@@ -436,7 +456,6 @@
       },
       formatDate(dateString) {
         if (!dateString) return '';
-        
         const date = new Date(dateString);
         return date.toLocaleDateString();
       },
@@ -459,6 +478,33 @@
         };
         this.currentProductId = null;
         this.isEditing = false;
+        this.clearAllFieldErrors();
+      },
+      clearFieldError(field) {
+        if (field === "name") this.nameError = "";
+        if (field === "category") this.categoryError = "";
+        if (field === "code") this.codeError = "";
+        if (field === "cost") this.costError = "";
+        if (field === "retail_price") this.retailPriceError = "";
+        if (field === "stock_threshold") this.thresholdError = "";
+      },
+      clearAllFieldErrors() {
+        this.nameError = "";
+        this.categoryError = "";
+        this.codeError = "";
+        this.costError = "";
+        this.retailPriceError = "";
+        this.thresholdError = "";
+      },
+      clearBatchFieldError(field) {
+        if (field === "quantity") this.batchQuantityError = "";
+        if (field === "expiry_date") this.batchExpiryError = "";
+        if (field === "received_date") this.batchReceivedError = "";
+      },
+      clearAllBatchFieldErrors() {
+        this.batchQuantityError = "";
+        this.batchExpiryError = "";
+        this.batchReceivedError = "";
       },
       resetBatchForm() {
         this.batchFormData = {
@@ -491,6 +537,7 @@
         this.currentProductId = product.id;
         this.formData = { ...product };
         this.isModalOpen = true;
+        this.clearAllFieldErrors();
       },
       closeModal() {
         this.isModalOpen = false;
@@ -500,18 +547,14 @@
         this.resetBatchForm();
         this.currentProductId = product_id;
         
-        // Generate new batch ID
         const product = this.products.find(p => p.id === product_id);
         const batchCount = product.batches ? product.batches.length : 0;
         this.batchFormData.batch_id = `B${String(product_id).padStart(2, '0')}${String(batchCount + 1).padStart(2, '0')}`;
         
-        // Set default dates
         const today = new Date();
 
-        // Set received date to today
         this.batchFormData.received_date = today.toLocaleDateString('en-CA');
         
-        // Default expiry date (6 months from today)
         const expiry_date = new Date();
         expiry_date.setMonth(expiry_date.getMonth() + 6);
         this.batchFormData.expiry_date = expiry_date.toLocaleDateString('en-CA');
@@ -544,111 +587,188 @@
         setTimeout(this.resetSellForm, 300);
       },
       async fetchProducts() {
+        this.productsError = "";
         try {
-            const response = await api.get('/api/products');
-            this.products = response.data;
-
-            this.products.forEach(product => {
-                this.updateProductQuantity(product.id);
-            });
+          const response = await api.get('/api/products');
+          this.products = response.data;
+          this.products.forEach(product => {
+            this.updateProductQuantity(product.id);
+          });
         } catch (error) {
-            console.error('Failed to fetch products:', error);
+          this.products = [];
+          this.productsError = "Failed to fetch products.";
         }
+      },
+      validateForm() {
+        let valid = true;
+        this.clearAllFieldErrors();
+
+        if (!this.formData.name) {
+          this.nameError = "Product name is required.";
+          valid = false;
+        } else if (
+          this.products.some(
+            p =>
+              p.name.trim().toLowerCase() === this.formData.name.trim().toLowerCase() &&
+              (!this.isEditing || p.id !== this.currentProductId)
+          )
+        ) {
+          this.nameError = "Product name must be unique.";
+          valid = false;
+        }
+
+        if (!this.formData.category) {
+          this.categoryError = "Category is required.";
+          valid = false;
+        }
+
+        if (!this.formData.code) {
+          this.codeError = "Product code is required.";
+          valid = false;
+        } else if (
+          this.products.some(
+            p =>
+              p.code.trim().toLowerCase() === this.formData.code.trim().toLowerCase() &&
+              (!this.isEditing || p.id !== this.currentProductId)
+          )
+        ) {
+          this.codeError = "Product code must be unique.";
+          valid = false;
+        }
+
+        if (!this.formData.cost && this.formData.cost !== 0) {
+          this.costError = "Cost is required.";
+          valid = false;
+        } else if (isNaN(this.formData.cost) || Number(this.formData.cost) < 0) {
+          this.costError = "Cost must be a non-negative number.";
+          valid = false;
+        }
+
+        if (!this.formData.retail_price && this.formData.retail_price !== 0) {
+          this.retailPriceError = "Retail price is required.";
+          valid = false;
+        } else if (isNaN(this.formData.retail_price) || Number(this.formData.retail_price) < 0) {
+          this.retailPriceError = "Retail price must be a non-negative number.";
+          valid = false;
+        }
+
+        if (!this.formData.stock_threshold && this.formData.stock_threshold !== 0) {
+          this.thresholdError = "Stock threshold is required.";
+          valid = false;
+        } else if (isNaN(this.formData.stock_threshold) || Number(this.formData.stock_threshold) < 0) {
+          this.thresholdError = "Stock threshold must be a non-negative number.";
+          valid = false;
+        }
+
+        return valid;
       },
       async submitForm() {
+        if (!this.validateForm()) return;
         try {
-            if (this.isEditing) {
-                // Update product
-                await api.put(`/api/products/${this.currentProductId}`, this.formData);
-            } else {
-                // Create new product
-                await api.post('/api/products', this.formData);
-            }
-            this.closeModal();
-            this.fetchProducts(); // Refresh product list
-        } catch (error) {
-            console.error('Failed to save product:', error);
-        }
-      },
-      async submitBatchForm() {
-        try {
-            const payload = {
-                product_id: this.currentProductId,
-                quantity: Number(this.batchFormData.quantity), 
-                expiry_date: this.batchFormData.expiry_date,
-                received_date: this.batchFormData.received_date
-            };
-  
-            if (this.isEditingBatch) {
-                await api.put(`/api/products/${this.currentProductId}/batches/${this.currentBatchId}`, 
-                    payload
-                );
-            } else {
-                await api.post(`/api/products/${this.currentProductId}/batches`, 
-                    payload
-                );
-            }
-            this.closeBatchModal();
-            this.fetchProducts();
-        } catch (error) {
-            console.error('Failed to save batch:', error);
-        }
-      },
-      async submitSellForm() {
-        try {
-          const payload = {
-            quantity: Number(this.sellFormData.quantity),
-            price: Number(this.sellFormData.price),
-            sell_date: this.sellFormData.sell_date
-          };
-          
-          await api.post(
-            `/api/products/${this.sellFormData.product_id}/batches/${this.sellFormData.batch_id}/sell`, 
-            payload
-          );
-          
-          this.closeSellModal();
+          if (this.isEditing) {
+            await api.put(`/api/products/${this.currentProductId}`, this.formData);
+            this.showToast("Product updated successfully!", "success");
+          } else {
+            await api.post('/api/products', this.formData);
+            this.showToast("Product added successfully!", "success");
+          }
+          this.closeModal();
           this.fetchProducts();
         } catch (error) {
-          console.error('Failed to process sale:', error);
+          this.showToast("Failed to save product.", "error");
         }
       },
-      async deleteProduct(product_id) {
-        if (confirm('Are you sure you want to delete this product?')) {
-          try {
-            await api.delete(`/api/products/${product_id}`);
-            this.fetchProducts();
-          } catch (error) {
-            console.error('Failed to delete product:', error);
-          }
+      validateBatchForm() {
+        let valid = true;
+        this.clearAllBatchFieldErrors();
+        if (!this.batchFormData.quantity || isNaN(this.batchFormData.quantity) || Number(this.batchFormData.quantity) < 1) {
+          this.batchQuantityError = "Quantity must be at least 1.";
+          valid = false;
         }
-      },
-      async deleteBatch(product_id, batch_id) {
+        if (!this.batchFormData.expiry_date) {
+          this.batchExpiryError = "Expiry date is required.";
+          valid = false;
+        }
+        if (!this.batchFormData.received_date) {
+          this.batchReceivedError = "Received date is required.";
+          valid = false;
+        }
+        return valid;
+      }, 
+      async submitBatchForm() {
+        if (!this.validateBatchForm()) return;
         try {
-            await api.delete(`/api/products/${product_id}/batches/${batch_id}`);
-            this.fetchProducts();
+          const payload = {
+            product_id: this.currentProductId,
+            quantity: Number(this.batchFormData.quantity),
+            expiry_date: this.batchFormData.expiry_date,
+            received_date: this.batchFormData.received_date
+          };
+
+          if (this.isEditingBatch) {
+            await api.put(`/api/products/${this.currentProductId}/batches/${this.currentBatchId}`, payload);
+            this.showToast("Batch updated successfully!", "success"); // <-- Add this
+          } else {
+            await api.post(`/api/products/${this.currentProductId}/batches`, payload);
+            this.showToast("Batch added successfully!", "success"); // <-- Add this
+          }
+          this.closeBatchModal();
+          this.fetchProducts();
         } catch (error) {
-            console.error('Failed to delete batch:', error);
+          this.showToast("Failed to save batch.", "error"); // <-- Add this
         }
+      },
+      confirmDeleteProduct(productId) {
+        this.productIdToDelete = productId;
+        this.showDeleteModal = true;
+      },
+      async deleteProductConfirmed() {
+        try {
+          await api.delete(`/api/products/${this.productIdToDelete}`);
+          this.fetchProducts();
+          this.showToast("Product deleted.", "success");
+        } catch (error) {
+          this.showToast("Failed to delete product.", "error");
+        } finally {
+          this.showDeleteModal = false;
+          this.productIdToDelete = null;
+        }
+      },
+      cancelDeleteProduct() {
+        this.showDeleteModal = false;
+        this.productIdToDelete = null;
+      },
+      confirmDeleteBatch(product_id, batch_id) {
+        this.batchToDelete = { product_id, batch_id };
+        this.showDeleteBatchModal = true;
+      },
+      async deleteBatchConfirmed() {
+        try {
+          await api.delete(`/api/products/${this.batchToDelete.product_id}/batches/${this.batchToDelete.batch_id}`);
+          this.fetchProducts();
+          this.showToast("Batch deleted.", "success");
+        } catch (error) {
+          this.showToast("Failed to delete batch.", "error");
+        } finally {
+          this.showDeleteBatchModal = false;
+          this.batchToDelete = { product_id: null, batch_id: null };
+        }
+      },
+      cancelDeleteBatch() {
+        this.showDeleteBatchModal = false;
+        this.batchToDelete = { product_id: null, batch_id: null };
       },
       updateProductQuantity(product_id) {
         const productIndex = this.products.findIndex(p => p.id === product_id);
-        
         if (productIndex === -1) return;
-        
         const product = this.products[productIndex];
-        
         if (!product.batches) {
           this.products[productIndex].quantity = 0;
           return;
         }
-        
-        // Sum up quantities from all batches
         const totalQuantity = product.batches.reduce((sum, batch) => {
-            return sum + (Number(batch.quantity) || 0);
+          return sum + (Number(batch.quantity) || 0);
         }, 0);
-
-        // Update the product's quantity
         this.products[productIndex].quantity = totalQuantity;
       }
     },
@@ -1044,6 +1164,18 @@
   font-size: 14px;
   background: white;
   min-width: 180px;
+}
+.error-message {
+  color: #e53e3e;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 100%;
 }
 </style>
 

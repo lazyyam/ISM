@@ -4,6 +4,7 @@ from database import get_db
 from models.product_models import Product
 from models.product_batch_models import ProductBatch
 from models.inventory_models import Inventory, TransactionTypeEnum
+from models.product_mapping_models import ProductMapping
 from schemas.product_schemas import ProductCreate, ProductUpdate, ProductRead, ProductBatchCreate, ProductBatchUpdate, ProductBatchRead
 from typing import List
 
@@ -55,6 +56,11 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Delete product mappings first
+    mappings = db.query(ProductMapping).filter(ProductMapping.product_id == product_id).all()
+    for mapping in mappings:
+        db.delete(mapping)
 
     inventories = db.query(Inventory).filter(Inventory.product_id == product_id).all()
     for inventory in inventories:

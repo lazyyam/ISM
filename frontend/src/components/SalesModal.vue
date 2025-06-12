@@ -12,6 +12,7 @@
           class="form-control"
         />
         <small class="form-text">Available: {{ maxQuantity }}</small>
+        <p v-if="saleQuantityError" class="field-error">{{ saleQuantityError }}</p>
       </div>
       <div class="form-group">
         <label for="sellDate">Sell Date:</label>
@@ -21,6 +22,7 @@
           v-model="sellDate"
           class="form-control"
         />
+        <p v-if="saleDateError" class="field-error">{{ saleDateError }}</p>
       </div>
       <div class="form-group">
         <label for="remarks">Remarks (optional):</label>
@@ -58,6 +60,8 @@ export default {
       maxQuantity: this.product
         ? this.product.batches.reduce((sum, b) => sum + (b.quantity || 0), 0)
         : 0,
+      saleQuantityError: "",
+      saleDateError: "",
     };
   },
   computed: {
@@ -71,6 +75,7 @@ export default {
   },
   methods: {
     async submitSale() {
+      if (!this.validateSaleForm()) return;
       try {
         await api.post(`/api/sales/`, {
             product_id: this.product.id,
@@ -78,10 +83,25 @@ export default {
             sell_date: this.sellDate,
             remarks: this.remarks,
             });
+        this.$emit("sale-success");
         this.$emit("close");
       } catch (error) {
         alert("Failed to process sale.");
       }
+    },
+    validateSaleForm() {
+      let valid = true;
+      this.saleQuantityError = "";
+      this.saleDateError = "";
+      if (!this.quantity || this.quantity < 1 || this.quantity > this.maxQuantity) {
+        this.saleQuantityError = "Quantity must be between 1 and " + this.maxQuantity + ".";
+        valid = false;
+      }
+      if (!this.sellDate) {
+        this.saleDateError = "Sell date is required.";
+        valid = false;
+      }
+      return valid;
     },
   },
 };
