@@ -2,3 +2,21 @@ errormodal/toast
 
 host
 
+
+
+move on to the purchase order manager page, is there anything can be improved in terms of the error handling/ error validation / wrong input etc.. use toast if necessary, provide me full modified code and list out where did you modfied
+
+For fetching methods, use inline text to show error just like InventoryAnalysisPage
+For any input fields, use inline text too to show error, like ManageAccountPage does
+
+
+
+
+
+
+
+
+
+all modal error handling
+
+PRODUCT SAME NAME

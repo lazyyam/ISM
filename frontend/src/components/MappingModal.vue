@@ -1,5 +1,7 @@
 <template>
   <BaseModal :isOpen="isOpen" title="Product Mapping" @close="$emit('close')">
+    <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
+    <p v-if="saveError" class="error-message">{{ saveError }}</p>
     <div class="mapping-modal-content">
       <div class="form-group">
         <label for="supplier-select">Select Supplier</label>
@@ -39,7 +41,12 @@
               <td>
                 <select v-model="mappings[sp.id]" class="form-control">
                   <option value="">-- Not Mapped --</option>
-                  <option v-for="p in products" :key="p.id" :value="p.id">
+                  <option
+                    v-for="p in products"
+                    :key="p.id"
+                    :value="p.id"
+                    :disabled="isProductMapped(p.id, sp.id)"
+                  >
                     {{ p.name }}
                   </option>
                 </select>
@@ -74,8 +81,10 @@ export default {
       selectedSupplierId: "",
       supplierProducts: [],
       products: [],
-      mappings: {}, // { supplierProductId: productId }
+      mappings: {}, 
       loading: false,
+      fetchError: "",
+      saveError: "",
     };
   },
   watch: {
@@ -96,8 +105,10 @@ export default {
       try {
         const res = await api.get("/api/suppliers");
         this.suppliers = res.data;
+        this.fetchError = "";
       } catch (e) {
         this.suppliers = [];
+        this.fetchError = "Failed to fetch suppliers.";
       }
     },
     async onSupplierChange() {
@@ -115,40 +126,70 @@ export default {
       try {
         const res = await api.get(`/api/supplier-products/by-supplier/${this.selectedSupplierId}`);
         this.supplierProducts = res.data;
+        this.fetchError = "";
       } catch (e) {
         this.supplierProducts = [];
+        this.fetchError = "Failed to fetch supplier products.";
       }
     },
     async fetchProducts() {
       try {
         const res = await api.get("/api/products");
         this.products = res.data;
+        this.fetchError = "";
       } catch (e) {
         this.products = [];
+        this.fetchError = "Failed to fetch products.";
       }
     },
     async fetchMappings() {
       try {
         const res = await api.get("/api/product-mappings");
-        // Only keep mappings for this supplier
         this.mappings = {};
         res.data.forEach(m => {
           if (m.supplier_id == this.selectedSupplierId) {
             this.mappings[m.supplier_product_id] = m.product_id;
           }
         });
+        this.fetchError = "";
       } catch (e) {
         this.mappings = {};
+        this.fetchError = "Failed to fetch product mappings.";
       }
     },
+    isProductMapped(productId, currentSupplierProductId) {
+      return Object.entries(this.mappings).some(
+        ([supplierProductId, mappedProductId]) =>
+          Number(supplierProductId) !== Number(currentSupplierProductId) &&
+          Number(mappedProductId) === Number(productId)
+      );
+    },
     async saveMapping(supplierProductId) {
+      this.saveError = "";
       const productId = this.mappings[supplierProductId];
-      await api.post("/api/product-mappings", {
-        supplier_id: this.selectedSupplierId,
-        supplier_product_id: supplierProductId,
-        product_id: productId,
-      });
-      this.$emit("mapping-updated");
+      try {
+        if (!productId) {
+          const res = await api.get("/api/product-mappings");
+          const mapping = res.data.find(
+            m => m.supplier_id == this.selectedSupplierId && m.supplier_product_id == supplierProductId
+          );
+          if (mapping) {
+            await api.delete(`/api/product-mappings/${mapping.id}`);
+            this.$emit("mapping-success");
+            await this.fetchMappings();
+          }
+          return;
+        }
+        await api.post("/api/product-mappings", {
+          supplier_id: this.selectedSupplierId,
+          supplier_product_id: supplierProductId,
+          product_id: productId,
+        });
+        this.$emit("mapping-success");
+        await this.fetchMappings();
+      } catch (e) {
+        this.saveError = "Failed to save mapping.";
+      }
     },
   },
 };
@@ -213,5 +254,11 @@ export default {
   text-align: center;
   color: #64748b;
   padding: 24px 0;
+}
+.error-message {
+  color: #e53e3e;
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-align: center;
 }
 </style>

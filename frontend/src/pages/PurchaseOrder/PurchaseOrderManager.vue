@@ -1,5 +1,16 @@
 <template>
   <div class="purchase-order-container">
+    <SuccessToast
+      v-if="showSuccessToast"
+      :message="toastMessage"
+      @close="showSuccessToast = false"
+    />
+    <ErrorToast
+      v-if="showErrorToast"
+      :message="toastMessage"
+      @close="showErrorToast = false"
+    />
+
     <h1>Purchase Order</h1>
     <div class="purchase-order-actions">
       <div class="search-bar">
@@ -19,6 +30,7 @@
         </select>
       </div>
     </div>
+    <div v-if="ordersError" class="error-message">{{ ordersError }}</div>
     <div class="purchase-order-table">
       <table>
         <thead>
@@ -64,11 +76,14 @@
                 >
                   <i class="edit-icon"></i>
                 </button>
-                <button class="delete-btn" @click="deleteOrder(order.id)" title="Delete order">
+                <button class="delete-btn" @click="confirmDeleteOrder(order.id)" title="Delete order">
                   <i class="delete-icon"></i>
                 </button>
               </div>
             </td>
+          </tr>
+          <tr v-if="filteredOrders.length === 0 && !ordersError">
+            <td colspan="8" style="text-align:center;">No orders found.</td>
           </tr>
         </tbody>
       </table>
@@ -85,6 +100,7 @@
     <MappingModal
       :isOpen="showMappingModal"
       @close="showMappingModal = false"
+      @mapping-success="showToast('Product mapping saved!', 'success')"
     />
 
     <!-- Payment Modal -->
@@ -206,20 +222,23 @@
         <div>
           <div class="form-group">
             <label>Order Date</label>
-            <input type="date" v-model="formData.orderDate" :disabled="isEditing" />
+            <input type="date" v-model="formData.orderDate" :disabled="isEditing" @input="clearFieldError('orderDate')" />
+            <p v-if="orderDateError" class="field-error">{{ orderDateError }}</p>
           </div>
           <div class="form-group">
             <label>Supplier</label>
-            <select v-model="formData.supplierId" :disabled="isEditing" @change="supplierChanged">
-              <option value="" disabled>Select Supplier</option>
+            <p v-if="suppliersError" class="error-message">{{ suppliersError }}</p>
+            <select v-model="formData.supplierId" :disabled="isEditing" @change="() => { supplierChanged(); clearFieldError('supplierId'); }">              <option value="" disabled>Select Supplier</option>
               <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
                 {{ supplier.full_name }} ({{ supplier.company_name }})
               </option>
             </select>
+            <p v-if="supplierIdError" class="field-error">{{ supplierIdError }}</p>
           </div>
           <div class="form-group">
             <label>Description</label>
-            <textarea v-model="formData.description" placeholder="Description"></textarea>
+            <textarea v-model="formData.description" placeholder="Description" @input="clearFieldError('description')"></textarea>
+            <p v-if="descriptionError" class="field-error">{{ descriptionError }}</p>
           </div>
           <div class="form-group">
             <label>Order Items</label>
@@ -236,12 +255,13 @@
               <tbody>
                 <tr v-for="(item, idx) in formData.orderItems" :key="idx">
                   <td class="product-col">
-                    <select v-model="item.productId" @change="productChanged(idx)">
+                    <select v-model="item.productId" @change="productChanged(idx);clearOrderItemError(idx, 'productId')">
                       <option value="" disabled>Select Product</option>
                       <option v-for="prod in supplierProducts" :key="prod.id" :value="prod.id">
                         {{ prod.name }}
                       </option>
                     </select>
+                    <p v-if="orderItemsError[idx] && orderItemsError[idx].productId" class="field-error">{{ orderItemsError[idx].productId }}</p>
                   </td>
                   <td class="quantity-col">
                     <input
@@ -249,11 +269,12 @@
                       min="1"
                       :max="getProductMaxQuantity(item.productId)"
                       v-model.number="item.quantity"
-                      @input="updateItemTotal(idx)"
+                      @input="updateItemTotal(idx);clearOrderItemError(idx, 'quantity')"
                     />
                     <span v-if="getProductMaxQuantity(item.productId)" class="available-qty">
                       / {{ getProductMaxQuantity(item.productId) }} available
                     </span>
+                    <p v-if="orderItemsError[idx] && orderItemsError[idx].quantity" class="field-error">{{ orderItemsError[idx].quantity }}</p>
                   </td>
                   <td>
                     {{ formatCurrency(item.cost) }}
@@ -265,7 +286,7 @@
                     <button 
                       v-if="formData.orderItems.length > 1" 
                       class="remove-item-btn"
-                      @click="removeOrderItem(index)"
+                      @click="removeOrderItem(idx)"
                       title="Remove item"
                     >
                       <i class="delete-icon"></i>
@@ -294,13 +315,23 @@
         </button>
       </template>
     </BaseModal>
+
+    <!--Delete Modal-->
+    <DeleteModal
+      :isOpen="showDeleteModal"
+      @close="cancelDeleteOrder"
+      @confirm="deleteOrderConfirmed"
+    />
   </div>
 </template>
 
 <script>
 import BaseModal from "@/components/BaseModal.vue";
+import DeleteModal from "@/components/DeleteModal.vue";
 import MappingModal from "@/components/MappingModal.vue";
 import PaymentModal from "@/components/PaymentModal.vue";
+import SuccessToast from "@/components/SuccessToast.vue";
+import ErrorToast from "@/components/ErrorToast.vue";
 import api from "@/services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -309,8 +340,11 @@ export default {
   name: 'PurchaseOrderManager',
   components: {
     BaseModal,
+    DeleteModal,
     MappingModal,
-    PaymentModal
+    PaymentModal,
+    SuccessToast,
+    ErrorToast
   },
   data() {
     return {
@@ -319,9 +353,13 @@ export default {
       selectedOrder: null,
       isEditing: false,
       showMappingModal: false,
+      showDeleteModal: false,
+      orderIdToDelete: null,
       isPaymentModalOpen: false,
       currentOrderId: null,
       orders: [],
+      ordersError: "",
+      suppliersError: "",
       suppliers: [],
       supplierProducts: [],
       productMappings: [],
@@ -334,11 +372,18 @@ export default {
           { productId: "", quantity: 1, cost: 0, total: 0 },
         ],
       },
+      orderDateError: "",
+      supplierIdError: "",
+      descriptionError: "",
+      orderItemsError: [],
       searchQuery: "",
       selectedStatus: "",
       statusOptions: [
         "Pending", "Accepted", "Paid", "Processing", "Delivering", "Delivered", "Declined"
       ],
+      showSuccessToast: false,
+      showErrorToast: false,
+      toastMessage: ""
     };
   },
   computed: {
@@ -363,11 +408,11 @@ export default {
       return this.isEditing ? 'Edit Purchase Order' : 'Add Purchase Order';
     },
     isFormValid() {
-      if (!this.formData.orderDate || !this.formData.supplierId || !this.formData.description) {
-        return false;
-      }
-      return this.formData.orderItems.some(
-        (item) => item.productId && item.quantity > 0
+      return (
+        this.formData.orderDate &&
+        this.formData.supplierId &&
+        this.formData.description &&
+        this.formData.orderItems.some(item => item.productId && item.quantity > 0)
       );
     }
   },
@@ -376,12 +421,24 @@ export default {
     this.fetchSuppliers();
   },
   methods: {
+    showToast(msg, type = "success") {
+      this.toastMessage = msg;
+      this.showSuccessToast = type === "success";
+      this.showErrorToast = type === "error";
+      setTimeout(() => {
+        this.showSuccessToast = false;
+        this.showErrorToast = false;
+        this.toastMessage = "";
+      }, 2500);
+    },
     async fetchOrders() {
+      this.ordersError = "";
       try {
         const response = await api.get("/api/purchase-orders");
         this.orders = response.data;
       } catch (error) {
-        console.error("Failed to fetch orders:", error);
+        this.orders = [];
+        this.ordersError = "Failed to fetch orders.";
       }
     },
     async fetchSuppliers() {
@@ -389,7 +446,8 @@ export default {
         const response = await api.get("/api/suppliers");
         this.suppliers = response.data;
       } catch (error) {
-        console.error("Failed to fetch suppliers:", error);
+        this.suppliers = [];
+        this.suppliersError = "Failed to fetch suppliers.";
       }
     },
     async fetchSupplierProducts() {
@@ -399,10 +457,15 @@ export default {
       }
       try {
         const response = await api.get(`/api/supplier-products/by-supplier/${this.formData.supplierId}`);
-        const mappedSupplierProductIds = this.productMappings.map(m => m.supplier_product_id);
-        this.supplierProducts = response.data.filter(
-          (product) => mappedSupplierProductIds.includes(product.id)
-        );
+        if (this.productMappings.length > 0) {
+          const mappedSupplierProductIds = this.productMappings.map(m => m.supplier_product_id);
+          this.supplierProducts = response.data.filter(
+            (product) => mappedSupplierProductIds.includes(product.id)
+          );
+        } else {
+          // If no mappings, show all products for the supplier
+          this.supplierProducts = response.data;
+        }
       } catch (error) {
         this.supplierProducts = [];
       }
@@ -427,7 +490,7 @@ export default {
         this.selectedOrder = response.data;
         this.isDetailModalOpen = true;
       } catch (error) {
-        console.error('Failed to fetch order details:', error);
+        this.showToast("Failed to fetch order details.", "error");
       }
     },
     formatDate(dateString) {
@@ -460,7 +523,7 @@ export default {
     },
     async editOrder(order) {
       if (order.status !== "Pending") {
-        alert("You can only edit orders that are still pending.");
+        this.showToast("You can only edit orders that are still pending.", "error");
         return;
       }
       this.isEditing = true;
@@ -483,7 +546,7 @@ export default {
         await this.fetchSupplierProducts();
         this.isModalOpen = true;
       } catch (error) {
-        console.error("Failed to fetch order details:", error);
+        this.showToast("Failed to fetch order details.", "error");
       }
     },
     async updateOrderStatus(orderId, newStatus) {
@@ -493,13 +556,15 @@ export default {
         });
         await this.viewOrderDetails({ id: orderId });
         await this.fetchOrders();
+        this.showToast("Order status updated!", "success");
       } catch (error) {
-        console.error('Failed to update order status:', error);
+        this.showToast('Failed to update order status.', "error");
       }
     },
     closeModal() {
       this.isModalOpen = false;
       this.resetForm();
+      this.clearAllFieldErrors();
     },
     closeDetailModal() {
       this.isDetailModalOpen = false;
@@ -517,6 +582,7 @@ export default {
         ],
       };
       this.supplierProducts = [];
+      this.clearAllFieldErrors();
     },
     async supplierChanged() {
       await this.fetchProductMappings();
@@ -551,10 +617,12 @@ export default {
         cost: 0,
         total: 0,
       });
+      this.orderItemsError.push({});
     },
     removeOrderItem(index) {
       if (this.formData.orderItems.length > 1) {
         this.formData.orderItems.splice(index, 1);
+        this.orderItemsError.splice(index, 1);
       }
     },
     calculateTotalCost() {
@@ -566,15 +634,64 @@ export default {
       const prod = this.supplierProducts.find(p => p.id === productId);
       return prod ? prod.quantity_available : 1;
     },
-    async submitForm() {
-      if (!this.isFormValid) return;
-      for (const item of this.formData.orderItems) {
-        const prod = this.supplierProducts.find(p => p.id === item.productId);
-        if (prod && item.quantity > prod.quantity_available) {
-          alert(`Cannot order more than available quantity for ${prod.name}`);
-          return;
-        }
+    clearFieldError(field) {
+      if (field === "orderDate") this.orderDateError = "";
+      if (field === "supplierId") this.supplierIdError = "";
+      if (field === "description") this.descriptionError = "";
+    },
+    clearOrderItemError(idx, field) {
+      if (!this.orderItemsError[idx]) this.orderItemsError[idx] = {};
+      this.orderItemsError[idx][field] = "";
+    },
+    clearAllFieldErrors() {
+      this.orderDateError = "";
+      this.supplierIdError = "";
+      this.descriptionError = "";
+      this.orderItemsError = this.formData.orderItems.map(() => ({}));
+    },
+    validateForm() {
+      let valid = true;
+      this.clearAllFieldErrors();
+
+      if (!this.formData.orderDate) {
+        this.orderDateError = "Order date is required.";
+        valid = false;
       }
+      if (!this.formData.supplierId) {
+        this.supplierIdError = "Supplier is required.";
+        valid = false;
+      }
+      if (!this.formData.description) {
+        this.descriptionError = "Description is required.";
+        valid = false;
+      }
+      if (!this.formData.orderItems.length) {
+        this.showToast("At least one order item is required.", "error");
+        valid = false;
+      }
+      this.formData.orderItems.forEach((item, idx) => {
+        if (!item.productId) {
+          if (!this.orderItemsError[idx]) this.orderItemsError[idx] = {};
+          this.orderItemsError[idx]["productId"] = "Product is required.";
+          valid = false;
+        }
+        if (!item.quantity || item.quantity < 1) {
+          if (!this.orderItemsError[idx]) this.orderItemsError[idx] = {};
+          this.orderItemsError[idx]["quantity"] = "Quantity must be at least 1.";
+          valid = false;
+        } else {
+          const prod = this.supplierProducts.find(p => p.id === item.productId);
+          if (prod && item.quantity > prod.quantity_available) {
+            if (!this.orderItemsError[idx]) this.orderItemsError[idx] = {};
+            this.orderItemsError[idx]["quantity"] = `Cannot order more than available quantity (${prod.quantity_available}).`;
+            valid = false;
+          }
+        }
+      });
+      return valid;
+    },
+    async submitForm() {
+      if (!this.validateForm()) return;
       try {
         const orderData = {
           supplier_id: this.formData.supplierId,
@@ -593,24 +710,36 @@ export default {
             `/api/purchase-orders/${this.currentOrderId}`,
             orderData
           );
+          this.showToast("Order updated successfully!", "success");
         } else {
           await api.post("/api/purchase-orders", orderData);
+          this.showToast("Order created successfully!", "success");
         }
         this.fetchOrders();
         this.closeModal();
       } catch (error) {
-        console.error("Failed to save purchase order:", error);
+        this.showToast("Failed to save purchase order.", "error");
       }
     },
-    async deleteOrder(orderId) {
-      if (confirm('Are you sure you want to delete this order?')) {
-        try {
-          await api.delete(`/api/purchase-orders/${orderId}`);
-          this.fetchOrders();
-        } catch (error) {
-          console.error('Failed to delete order:', error);
-        }
+    confirmDeleteOrder(orderId) {
+      this.orderIdToDelete = orderId;
+      this.showDeleteModal = true;
+    },
+    async deleteOrderConfirmed() {
+      try {
+        await api.delete(`/api/purchase-orders/${this.orderIdToDelete}`);
+        this.fetchOrders();
+        this.showToast("Order deleted.", "success");
+      } catch (error) {
+        this.showToast('Failed to delete order.', "error");
+      } finally {
+        this.showDeleteModal = false;
+        this.orderIdToDelete = null;
       }
+    },
+    cancelDeleteOrder() {
+      this.showDeleteModal = false;
+      this.orderIdToDelete = null;
     },
     openPaymentModal(order) {
       this.selectedOrder = order;
@@ -628,7 +757,6 @@ export default {
       return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
     },
     showInvoiceButton(order) {
-      // Show for all except Pending/Declined
       return order && !['Pending', 'Declined'].includes(order.status);
     },
     downloadInvoice(order) {
@@ -665,7 +793,7 @@ export default {
       doc.setFontSize(13);
       doc.text(`Total: ${this.formatCurrency(order.total_cost)}`, 14, finalY + 12);
 
-      // Optional: Footer
+      // Footer
       doc.setFontSize(10);
       doc.text("Thank you for your business!", 14, finalY + 24);
 
@@ -1132,16 +1260,16 @@ td {
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background-color: #edf2f7;
+  background-color: #0066cc;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   font-size: 13px;
-  color: #4a5568;
+  color: white;
   cursor: pointer;
 }
 
 .purchase-form .add-item-btn:hover {
-  background-color: #e2e8f0;
+  background-color: #0052a3;
 }
 
 .purchase-form .remove-item-btn {
@@ -1277,5 +1405,17 @@ td {
   font-size: 14px;
   background: white;
   margin-left: 8px;
+}
+.error-message {
+  color: #e53e3e;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.field-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  text-align: left;
+  width: 100%;
 }
 </style>
