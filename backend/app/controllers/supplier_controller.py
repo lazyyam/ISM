@@ -1,9 +1,9 @@
 from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import get_db
-from models.user_models import User  
-from schemas.user_schemas import UserResponse
+from app.database import get_db
+from app.models.user_models import User  
+from app.schemas.user_schemas import UserResponse
 
 supplier_router = APIRouter()
 

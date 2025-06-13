@@ -2,16 +2,16 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from database import get_db, Base, engine
-from controllers.auth_controller import auth_router
-from controllers.product_controller import product_router
-from controllers.supplier_controller import supplier_router
-from controllers.supplier_product_controller import supplier_product_router
-from controllers.purchase_order_controller import purchase_order_router
-from controllers.product_mapping_controller import product_mapping_router
-from controllers.sales_controller import sales_router
-from controllers.supplier_bank_account_controller import supplier_bank_account_router
-from controllers.inventory_controller import inventory_router
+from app.database import get_db, Base, engine
+from app.controllers.auth_controller import auth_router
+from app.controllers.product_controller import product_router
+from app.controllers.supplier_controller import supplier_router
+from app.controllers.supplier_product_controller import supplier_product_router
+from app.controllers.purchase_order_controller import purchase_order_router
+from app.controllers.product_mapping_controller import product_mapping_router
+from app.controllers.sales_controller import sales_router
+from app.controllers.supplier_bank_account_controller import supplier_bank_account_router
+from app.controllers.inventory_controller import inventory_router
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
@@ -26,7 +26,7 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
 
 app.include_router(auth_router, prefix="/api", tags=["Auth"])
 app.include_router(product_router, prefix="/api/products", tags=["Products"])

@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from database import Base
-from utils.timezone_config import MALAYSIA_TIMEZONE
+from app.database import Base
+from app.utils.timezone_config import MALAYSIA_TIMEZONE
 
 class User(Base):
     __tablename__ = "users"

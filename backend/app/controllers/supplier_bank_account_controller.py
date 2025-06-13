@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from utils.auth_dependencies import get_current_user
-from database import get_db
-from models.supplier_bank_account_models import SupplierBankAccount
-from schemas.supplier_bank_account_schemas import SupplierBankAccountCreate, SupplierBankAccountRead
+from app.utils.auth_dependencies import get_current_user
+from app.database import get_db
+from app.models.supplier_bank_account_models import SupplierBankAccount
+from app.schemas.supplier_bank_account_schemas import SupplierBankAccountCreate, SupplierBankAccountRead
 from typing import List
 
 supplier_bank_account_router = APIRouter()

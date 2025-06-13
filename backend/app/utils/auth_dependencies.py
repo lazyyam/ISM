@@ -1,8 +1,8 @@
 from fastapi import Header, HTTPException, Depends
 from typing import Optional
 from sqlalchemy.orm import Session
-from database import get_db
-from models.user_models import User 
+from app.database import get_db
+from app.models.user_models import User 
 import jwt, os
 from dotenv import load_dotenv
 

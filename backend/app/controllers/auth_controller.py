@@ -5,12 +5,12 @@ from passlib.context import CryptContext
 from datetime import datetime, timezone, timedelta
 import jwt, os
 from dotenv import load_dotenv
-from utils.auth_dependencies import get_current_user
-from database import get_db
-from models.user_models import User  
-from schemas.user_schemas import UserCreate, UserLogin, ForgotPasswordRequest, ResetPasswordRequest, UserUpdate, UserResponse
+from app.utils.auth_dependencies import get_current_user
+from app.database import get_db
+from app.models.user_models import User  
+from app.schemas.user_schemas import UserCreate, UserLogin, ForgotPasswordRequest, ResetPasswordRequest, UserUpdate, UserResponse
 from fastapi.responses import JSONResponse
-from utils.email import send_reset_email
+from app.utils.email import send_reset_email
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 

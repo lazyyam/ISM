@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
+from app.database import Base
 from datetime import datetime
-from utils.timezone_config import MALAYSIA_TIMEZONE
+from app.utils.timezone_config import MALAYSIA_TIMEZONE
 
 class PurchaseOrderStatusHistory(Base):
     __tablename__ = "purchase_order_status_history"

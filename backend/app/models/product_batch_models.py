@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Date, ForeignKey
 from sqlalchemy.orm import relationship 
-from database import Base
+from app.database import Base
 
 class ProductBatch(Base):
     __tablename__ = "product_batches"

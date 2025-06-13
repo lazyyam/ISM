@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
-from database import get_db
-from models.inventory_models import Inventory
-from schemas.inventory_schemas import InventoryRead
+from app.database import get_db
+from app.models.inventory_models import Inventory
+from app.schemas.inventory_schemas import InventoryRead
 from typing import List
 
 inventory_router = APIRouter()

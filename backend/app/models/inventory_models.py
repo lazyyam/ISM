@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, Enum, TIMESTAMP, func
 from sqlalchemy.orm import relationship 
-from database import Base
+from app.database import Base
 import enum
 
 class TransactionTypeEnum(enum.Enum):

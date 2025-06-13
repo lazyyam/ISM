@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, DECIMAL
 from sqlalchemy.orm import relationship
-from database import Base
+from app.database import Base
 
 class PurchaseOrderItem(Base):
     __tablename__ = "purchase_order_items"

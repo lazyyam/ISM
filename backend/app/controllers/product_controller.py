@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from database import get_db
-from models.product_models import Product
-from models.product_batch_models import ProductBatch
-from models.inventory_models import Inventory, TransactionTypeEnum
-from models.product_mapping_models import ProductMapping
-from schemas.product_schemas import ProductCreate, ProductUpdate, ProductRead, ProductBatchCreate, ProductBatchUpdate, ProductBatchRead
+from app.database import get_db
+from app.models.product_models import Product
+from app.models.product_batch_models import ProductBatch
+from app.models.inventory_models import Inventory, TransactionTypeEnum
+from app.models.product_mapping_models import ProductMapping
+from app.schemas.product_schemas import ProductCreate, ProductUpdate, ProductRead, ProductBatchCreate, ProductBatchUpdate, ProductBatchRead
 from typing import List
 
 product_router = APIRouter()

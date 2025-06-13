@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from database import get_db
-from models.product_mapping_models import ProductMapping
-from schemas.product_mapping_schemas import ProductMappingCreate, ProductMappingRead
+from app.database import get_db
+from app.models.product_mapping_models import ProductMapping
+from app.schemas.product_mapping_schemas import ProductMappingCreate, ProductMappingRead
 
 product_mapping_router = APIRouter()
 
