@@ -1,7 +1,7 @@
 import axios from "axios";
-import router from "@/router"; // Make sure you have your router imported
+import router from "@/router"; 
 
-const API_URL = "http://127.0.0.1:8000"; 
+const API_URL = process.env.VUE_APP_API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_URL,
