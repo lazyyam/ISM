@@ -589,7 +589,7 @@
       async fetchProducts() {
         this.productsError = "";
         try {
-          const response = await api.get('/api/products/');
+          const response = await api.get('/api/products');
           this.products = response.data;
           this.products.forEach(product => {
             this.updateProductQuantity(product.id);
