@@ -18,7 +18,8 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],  # Vue dev server
+    allow_origins=["http://localhost:8080", # local dev frontend
+                   "https://ism-vuejs-production.up.railway.app"],  # deployed frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
