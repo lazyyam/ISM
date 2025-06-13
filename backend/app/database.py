@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:aa6802602bb@localhost:3306/ismdb")
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:OOqohPjpZZvNmGtSQyDXMWSWdAXbLQZp@metro.proxy.rlwy.net:46656/railway")
 
 engine = create_engine(DATABASE_URL)
 
