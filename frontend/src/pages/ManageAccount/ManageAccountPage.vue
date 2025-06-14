@@ -175,8 +175,8 @@ export default {
       if (!this.userData.phone_number) {
         this.phoneNumberError = "Phone number is required.";
         valid = false;
-      } else if (!/^\d{9,15}$/.test(this.userData.phone_number.replace(/\D/g, ""))) {
-        this.phoneNumberError = "Please enter a valid phone number (9-15 digits).";
+      } else if (!/^\d{10,15}$/.test(this.userData.phone_number.replace(/\D/g, ""))) {
+        this.phoneNumberError = "Please enter a valid phone number (10-15 digits).";
         valid = false;
       }
       return valid;
@@ -206,7 +206,14 @@ export default {
         this.originalUserData = { ...this.userData };
         this.isEditing = false;
       } catch (error) {
-        this.toastMessage = error.response?.data?.detail || 'Failed to update account information.';
+        const detail = error.response?.data?.detail;
+        if (Array.isArray(detail)) {
+          this.toastMessage = "Please check your input fields and try again.";
+        } else if (typeof detail === "string") {
+          this.toastMessage = detail;
+        } else {
+          this.toastMessage = "Failed to update account information.";
+        }
         this.showErrorToast = true;
       }
     }

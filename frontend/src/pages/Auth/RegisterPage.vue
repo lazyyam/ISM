@@ -139,8 +139,8 @@ export default {
         this.phoneNumberError = "Phone number is required.";
         return;
       }
-      if (!/^\d{9,15}$/.test(this.phone_number.replace(/\D/g, ""))) {
-        this.phoneNumberError = "Please enter a valid phone number (9-15 digits).";
+      if (!/^\d{10,15}$/.test(this.phone_number.replace(/\D/g, ""))) {
+        this.phoneNumberError = "Please enter a valid phone number (10-15 digits).";
         return;
       }
       if (!this.password) {
@@ -171,11 +171,14 @@ export default {
         }, 1200);
 
       } catch (error) {
-        this.errorMessage = error.response?.data?.detail 
-          ? (typeof error.response.data.detail === "string"
-              ? error.response.data.detail
-              : JSON.stringify(error.response.data.detail))
-          : "Registration failed.";
+        const detail = error.response?.data?.detail;
+        if (Array.isArray(detail)) {
+          this.errorMessage = "Please check your input fields and try again.";
+        } else if (typeof detail === "string") {
+          this.errorMessage = detail;
+        } else {
+          this.errorMessage = "Registration failed.";
+        }
       } finally {
         this.loading = false;
       }
@@ -309,7 +312,6 @@ button {
   margin: 0 0 8px 0;
   text-align: left;
   width: 84%;
-  padding-left: 2.0rem;
 }
 
 .form-error {
