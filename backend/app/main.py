@@ -13,6 +13,7 @@ from app.controllers.sales_controller import sales_router
 from app.controllers.supplier_bank_account_controller import supplier_bank_account_router
 from app.controllers.inventory_controller import inventory_router
 from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI()
 
@@ -27,6 +28,8 @@ app.add_middleware(
 # local dev frontend http://localhost:8080
 
 Base.metadata.create_all(bind=engine)
+
+os.makedirs("/data/uploads", exist_ok=True)
 
 #app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
 app.mount("/uploads", StaticFiles(directory="/data/uploads"), name="uploads")
