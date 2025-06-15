@@ -28,7 +28,9 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
+#app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory="/data/uploads"), name="uploads")
+
 
 app.include_router(auth_router, prefix="/api", tags=["Auth"])
 app.include_router(product_router, prefix="/api/products", tags=["Products"])

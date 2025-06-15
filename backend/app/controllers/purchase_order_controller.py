@@ -324,7 +324,7 @@ def upload_payment_receipt(order_id: int, file: UploadFile = File(...), db: Sess
     # Save file
     ext = os.path.splitext(file.filename)[1]
     filename = f"receipt_order_{order_id}_{int(datetime.now().timestamp())}{ext}"
-    upload_dir = "uploads/payment_receipts"
+    upload_dir = "/data/uploads/payment_receipts"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, filename)
     with open(file_path, "wb") as f:
