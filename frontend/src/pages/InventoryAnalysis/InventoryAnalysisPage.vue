@@ -98,7 +98,7 @@
     <!-- Stock Alert Section -->
     <div class="stock-alert-section">
       <div class="stock-alert-card">
-        <h2>Stock Alert</h2>
+        <h2>Stock Alerts</h2>
         <div v-if="loadingProducts">Loading...</div>
         <div v-else-if="productsError" class="error-message">{{ productsError }}</div>
         <div v-else class="alert-table">
