@@ -47,12 +47,12 @@
         </thead>
         <tbody>
           <tr 
-            v-for="(order, index) in filteredOrders" 
+            v-for="(order, index) in paginatedOrders" 
             :key="order.id"
             @click="viewOrderDetails(order)"
             class="order-row"
           >
-            <td>{{ index + 1 }}</td>
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ formatDate(order.order_date) }}</td>
             <td>{{ order.supplier_name }}</td>
             <td>{{ order.company_name }}</td>
@@ -87,6 +87,26 @@
           </tr>
         </tbody>
       </table>
+      <div class="pagination">
+        <button @click="currentPage--" :disabled="currentPage === 1" title="Previous">
+          &lt;
+        </button>
+        <span>
+          Page
+          <input
+            type="number"
+            v-model.number="pageInput"
+            @change="goToPage"
+            :min="1"
+            :max="totalPages"
+            style="width: 40px; text-align: center;"
+          />
+          of {{ totalPages }}
+        </span>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" title="Next">
+          &gt;
+        </button>
+      </div>
     </div>
     <div class="bottom-buttons">
       <button class="mapping-btn" @click="showMappingModal = true">
@@ -348,6 +368,9 @@ export default {
   },
   data() {
     return {
+      currentPage: 1,
+      pageSize: 5,
+      pageInput: 1,
       isModalOpen: false,
       isDetailModalOpen: false,
       selectedOrder: null,
@@ -386,7 +409,26 @@ export default {
       toastMessage: ""
     };
   },
+  watch: {
+    currentPage(val) {
+      this.pageInput = val;
+    },
+    searchQuery() {
+      this.currentPage = 1;
+    },
+    selectedStatus() {
+      this.currentPage = 1;
+    }
+  },
   computed: {
+    paginatedOrders() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.filteredOrders.slice(start, end);
+    },
+    totalPages() {
+      return Math.ceil(this.filteredOrders.length / this.pageSize) || 1;
+    },
     filteredOrders() {
       let filtered = this.orders;
       if (this.selectedStatus) {
@@ -421,6 +463,11 @@ export default {
     this.fetchSuppliers();
   },
   methods: {
+    goToPage() {
+      if (this.pageInput < 1) this.pageInput = 1;
+      if (this.pageInput > this.totalPages) this.pageInput = this.totalPages;
+      this.currentPage = this.pageInput;
+    },
     showToast(msg, type = "success") {
       this.toastMessage = msg;
       this.showSuccessToast = type === "success";
@@ -761,21 +808,26 @@ export default {
     },
     downloadInvoice(order) {
       const doc = new jsPDF();
+
+      // Add company name OCO at the top
       doc.setFontSize(20);
-      doc.text("INVOICE", 14, 18);
+      doc.text("OCO", 14, 18);
+
+      doc.setFontSize(16);
+      doc.text("INVOICE", 14, 30);
 
       doc.setFontSize(12);
-      doc.text(`Invoice #: ${order.id}`, 14, 28);
-      doc.text(`Order Date: ${this.formatDate(order.order_date)}`, 14, 36);
-      doc.text(`Supplier: ${order.supplier_name || ''}`, 14, 44);
-      doc.text(`Company: ${order.company_name || ''}`, 14, 52);
-      doc.text(`Status: ${order.status}`, 14, 60);
+      doc.text(`Invoice #: ${order.id}`, 14, 40);
+      doc.text(`Order Date: ${this.formatDate(order.order_date)}`, 14, 48);
+      doc.text(`Supplier: ${order.supplier_name || ''}`, 14, 56);
+      doc.text(`Company: ${order.company_name || ''}`, 14, 64);
+      doc.text(`Status: ${order.status}`, 14, 72);
 
-      doc.text("Order Description:", 14, 70);
-      doc.text(order.description || '', 14, 78);
+      doc.text("Order Description:", 14, 82);
+      doc.text(order.description || '', 14, 90);
 
       autoTable(doc, {
-        startY: 88,
+        startY: 100,
         head: [["Product", "Quantity", "Unit Cost", "Subtotal"]],
         body: (order.items || []).map(item => [
           item.product_name,
@@ -789,7 +841,7 @@ export default {
       });
 
       // Total
-      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 88 + 8 * (order.items?.length || 1);
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 100 + 8 * (order.items?.length || 1);
       doc.setFontSize(13);
       doc.text(`Total: ${this.formatCurrency(order.total_cost)}`, 14, finalY + 12);
 
@@ -798,6 +850,8 @@ export default {
       doc.text("Thank you for your business!", 14, finalY + 24);
 
       doc.save(`invoice_order_${order.id}.pdf`);
+
+      this.showToast("Invoice downloaded!", "success");
     },
   },
 };
@@ -1417,5 +1471,23 @@ td {
   margin: 0 0 8px 0;
   text-align: left;
   width: 100%;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
 }
 </style>

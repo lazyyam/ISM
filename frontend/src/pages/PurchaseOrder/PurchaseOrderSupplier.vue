@@ -46,12 +46,12 @@
         </thead>
         <tbody>
           <tr 
-            v-for="(order, index) in filteredOrders" 
+            v-for="(order, index) in paginatedOrders" 
             :key="order.id"
             @click="viewOrderDetails(order)"
             class="order-row"
           >
-            <td>{{ index + 1 }}</td>
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ formatDate(order.order_date) }}</td>
             <td>{{ order.description }}</td>
             <td>{{ formatCurrency(order.total_cost) }}</td>
@@ -69,6 +69,26 @@
           </tr>
         </tbody>
       </table>
+      <div class="pagination">
+        <button @click="currentPage--" :disabled="currentPage === 1" title="Previous">
+          &lt;
+        </button>
+        <span>
+          Page
+          <input
+            type="number"
+            v-model.number="pageInput"
+            @change="goToPage"
+            :min="1"
+            :max="totalPages"
+            style="width: 40px; text-align: center;"
+          />
+          of {{ totalPages }}
+        </span>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" title="Next">
+          &gt;
+        </button>
+      </div>
     </div>
     <button class="update-bank-btn" @click="isBankModalOpen = true">
       <i class="bank-icon"></i>
@@ -162,11 +182,24 @@
             </div>
             
             <div v-if="selectedOrder.status === 'Pending'" class="status-update">
+              <div v-if="!hasBankInfo" class="bank-warning" style="color:#e53e3e; margin-bottom:8px;">
+                Please update your bank info before taking any action on this order.
+              </div>
               <div class="button-group">
-                <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Accepted')">
+                <button 
+                  class="accept-btn"
+                  @click="updateOrderStatus(selectedOrder.id, 'Accepted')"
+                  :disabled="!hasBankInfo"
+                  :title="!hasBankInfo ? 'Please update your bank info first.' : ''"
+                >
                   Accept Order
                 </button>
-                <button class="decline-btn" @click="showDecline = true">
+                <button 
+                  class="decline-btn"
+                  @click="showDecline = true"
+                  :disabled="!hasBankInfo"
+                  :title="!hasBankInfo ? 'Please update your bank info first.' : ''"
+                >
                   Decline Order
                 </button>
               </div>
@@ -180,12 +213,25 @@
               </div>
             </div>
             <div v-else-if="selectedOrder.status === 'Paid'" class="status-update">
-              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Processing')">
+              <div v-if="!hasBankInfo" class="bank-warning" style="color:#e53e3e; margin-bottom:8px;">
+                Please update your bank info before taking any action on this order.
+              </div>
+              <button 
+                class="accept-btn" 
+                @click="updateOrderStatus(selectedOrder.id, 'Processing')"
+                :disabled="!hasBankInfo"
+                :title="!hasBankInfo ? 'Please update your bank info first.' : ''"
+              >
                 Mark as Processing
               </button>
             </div>
             <div v-else-if="selectedOrder.status === 'Processing'" class="status-update">
-              <button class="accept-btn" @click="updateOrderStatus(selectedOrder.id, 'Delivering')">
+              <button 
+                class="accept-btn" 
+                @click="updateOrderStatus(selectedOrder.id, 'Delivering')"
+                :disabled="!hasBankInfo"
+                :title="!hasBankInfo ? 'Please update your bank info first.' : ''"
+              >
                 Mark as Delivering
               </button>
             </div>                            
@@ -246,6 +292,9 @@ export default {
   },
   data() {
     return {
+      currentPage: 1,
+      pageSize: 5,
+      pageInput: 1,
       searchQuery: '',
       selectedStatus: '',
       statusOptions: [
@@ -275,7 +324,26 @@ export default {
       toastMessage: ""
     };
   },
+  watch: {
+    currentPage(val) {
+      this.pageInput = val;
+    },
+    searchQuery() {
+      this.currentPage = 1;
+    },
+    selectedStatus() {
+      this.currentPage = 1;
+    }
+  },
   computed: {
+    paginatedOrders() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.filteredOrders.slice(start, end);
+    },
+    totalPages() {
+      return Math.ceil(this.filteredOrders.length / this.pageSize) || 1;
+    },
     filteredOrders() {
       let filtered = this.orders;
       if (this.selectedStatus) {
@@ -290,13 +358,25 @@ export default {
         });
       }
       return filtered;
-    }
+    },
+    hasBankInfo() {
+      return (
+        this.bankForm.bank_name &&
+        this.bankForm.account_number &&
+        this.bankForm.account_holder
+      );
+    },
   },
   mounted() {
     this.fetchOrders();
     this.fetchBankInfo();
   },
   methods: {
+    goToPage() {
+      if (this.pageInput < 1) this.pageInput = 1;
+      if (this.pageInput > this.totalPages) this.pageInput = this.totalPages;
+      this.currentPage = this.pageInput;
+    },
     showToast(msg, type = "success") {
       this.toastMessage = msg;
       this.showSuccessToast = type === "success";
@@ -487,21 +567,26 @@ export default {
         return;
       }
       const doc = new jsPDF();
+
+      // Add company name OCO at the top
       doc.setFontSize(20);
-      doc.text("INVOICE", 14, 18);
+      doc.text("OCO", 14, 18);
+
+      doc.setFontSize(16);
+      doc.text("INVOICE", 14, 30);
 
       doc.setFontSize(12);
-      doc.text(`Invoice #: ${order.id}`, 14, 28);
-      doc.text(`Order Date: ${this.formatDate(order.order_date)}`, 14, 36);
-      doc.text(`Supplier: ${order.supplier_name || ''}`, 14, 44);
-      doc.text(`Company: ${order.company_name || ''}`, 14, 52);
-      doc.text(`Status: ${order.status}`, 14, 60);
+      doc.text(`Invoice #: ${order.id}`, 14, 40);
+      doc.text(`Order Date: ${this.formatDate(order.order_date)}`, 14, 48);
+      doc.text(`Supplier: ${order.supplier_name || ''}`, 14, 56);
+      doc.text(`Company: ${order.company_name || ''}`, 14, 64);
+      doc.text(`Status: ${order.status}`, 14, 72);
 
-      doc.text("Order Description:", 14, 70);
-      doc.text(order.description || '', 14, 78);
+      doc.text("Order Description:", 14, 82);
+      doc.text(order.description || '', 14, 90);
 
       autoTable(doc, {
-        startY: 88,
+        startY: 100,
         head: [["Product", "Quantity", "Unit Cost", "Subtotal"]],
         body: (this.orderItems || []).map(item => [
           item.product_name,
@@ -514,7 +599,7 @@ export default {
         styles: { fontSize: 11 }
       });
 
-      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 88 + 8 * (this.orderItems?.length || 1);
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 100 + 8 * (this.orderItems?.length || 1);
       doc.setFontSize(13);
       doc.text(`Total: ${this.formatCurrency(order.total_cost)}`, 14, finalY + 12);
 
@@ -841,6 +926,11 @@ td {
   background-color: #047857;
 }
 
+.accept-btn:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
 .decline-btn {
   padding: 8px 16px;
   background-color: #ef4444;
@@ -853,8 +943,14 @@ td {
   transition: background-color 0.2s;
   white-space: nowrap;
 }
+
 .decline-btn:hover {
   background-color: #b91c1c;
+}
+
+.decline-btn:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
 }
 
 .cancel-btn {
@@ -1018,5 +1114,23 @@ td {
   margin: 0 0 8px 0;
   text-align: left;
   width: 100%;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
 }
 </style>

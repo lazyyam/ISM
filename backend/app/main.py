@@ -19,13 +19,14 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ism-vuejs-production.up.railway.app"],  # deployed frontend
+    allow_origins=["http://localhost:8080"],  # deployed frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # local dev frontend http://localhost:8080
+# prod frontend https://ism-vuejs-production.up.railway.app
 
 Base.metadata.create_all(bind=engine)
 

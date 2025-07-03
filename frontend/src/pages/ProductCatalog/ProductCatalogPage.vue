@@ -46,8 +46,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(product, index) in filteredProducts" :key="product.id">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(product, index) in paginatedProducts" :key="product.id">
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ product.name }}</td>
             <td>{{ product.category }}</td>
             <td>{{ product.code }}</td>
@@ -77,6 +77,26 @@
           <td colspan="7" style="text-align: center;">No products found.</td>
         </tr>
       </table>
+      <div class="pagination">
+        <button @click="currentPage--" :disabled="currentPage === 1" title="Previous">
+          &lt;
+        </button>
+        <span>
+          Page
+          <input
+            type="number"
+            v-model.number="pageInput"
+            @change="goToPage"
+            :min="1"
+            :max="totalPages"
+            style="width: 40px; text-align: center;"
+          />
+          of {{ totalPages }}
+        </span>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" title="Next">
+          &gt;
+        </button>
+      </div>
     </div>
     
     <button class="add-product-btn" @click="openAddModal">
@@ -195,6 +215,9 @@ export default {
   },
   data() {
     return {
+      currentPage: 1,
+      pageSize: 5,
+      pageInput: 1,
       searchQuery: '',
       selectedCategory: '',
       isModalOpen: false,
@@ -234,7 +257,26 @@ export default {
   mounted() {
     this.fetchProducts();
   },
+  watch: {
+    currentPage(val) {
+      this.pageInput = val;
+    },
+    searchQuery() {
+      this.currentPage = 1;
+    },
+    selectedCategory() {
+      this.currentPage = 1;
+    }
+  },
   computed: {
+    paginatedProducts() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.filteredProducts.slice(start, end);
+    },
+    totalPages() {
+      return Math.ceil(this.filteredProducts.length / this.pageSize) || 1;
+    },
     filteredProducts() {
       let filtered = this.products;
       if (this.selectedCategory) {
@@ -257,6 +299,11 @@ export default {
     }
   },
   methods: {
+    goToPage() {
+      if (this.pageInput < 1) this.pageInput = 1;
+      if (this.pageInput > this.totalPages) this.pageInput = this.totalPages;
+      this.currentPage = this.pageInput;
+    },
     showToast(msg, type = "success") {
       this.toastMessage = msg;
       this.showSuccessToast = type === "success";
@@ -682,5 +729,23 @@ td {
   margin: 0 0 8px 0;
   text-align: left;
   width: 100%;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
 }
 </style>

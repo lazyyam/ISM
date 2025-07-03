@@ -1,0 +1,187 @@
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    category VARCHAR(255),
+    code VARCHAR(50) UNIQUE,
+    cost DECIMAL(10,2),
+    retail_price DECIMAL(10,2),
+    stock_threshold INT -- Used to trigger restock alert
+);
+
+CREATE TABLE inventory (
+    id INT PRIMARY KEY,
+    product_id INT,
+    change_amount INT, -- Positive is restock, negative is sale
+    transaction_type ENUM('sale', 'restock'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    batch_id INT,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id) REFERENCES product_batches(batch_id)
+);
+
+CREATE TABLE product_batches (
+    batch_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT,
+    quantity INT,
+    expiry_date DATE,
+    received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+
+supplier_products
+------------------------
+id (PK)
+supplier_id (FK to users/suppliers)
+name
+category
+code
+cost
+quantity_available
+created_at
+
+purchase_orders
+------------------------
+id (PK)
+supplier_id (FK to users)
+order_date
+status (pending, approved, shipped, received, cancelled)
+total_cost
+
+purchase_order_items
+------------------------
+id (PK)
+purchase_order_id (FK)
+supplier_product_id (FK)
+quantity
+unit_cost
+subtotal
+
+
+
+
+
+
+
+Got it — you want to add sorting to your supplier product page, and show a little ▲ (up) or ▼ (down) icon next to the column header when sorting!
+
+Let’s add this properly and simply into your current page step by step:
+
+1. Add sorting data to your data()
+javascript
+Copy
+Edit
+data() {
+  return {
+    searchQuery: '',
+    isModalOpen: false,
+    isEditing: false,
+    currentProductId: null,
+    formData: {
+      name: '',
+      category: '',
+      code: '',
+      cost: '',
+      quantity_available: ''
+    },
+    products: [],
+    sortKey: '',       // <-- Which column is being sorted
+    sortOrder: 'asc'   // <-- 'asc' or 'desc'
+  };
+},
+2. Update your computed filteredProducts
+Modify it to also apply sorting:
+
+javascript
+Copy
+Edit
+computed: {
+  filteredProducts() {
+    let result = this.products;
+
+    if (this.searchQuery) {
+      const query = this.searchQuery.toLowerCase();
+      result = result.filter(product => {
+        return product.name.toLowerCase().includes(query) ||
+               product.code.includes(query);
+      });
+    }
+
+    if (this.sortKey) {
+      result = result.slice().sort((a, b) => {
+        let valA = a[this.sortKey];
+        let valB = b[this.sortKey];
+
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+
+        if (valA < valB) return this.sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return this.sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  },
+  modalTitle() {
+    return this.isEditing ? 'Edit Product' : 'Add Product';
+  }
+},
+3. Add a method to handle clicking the header
+javascript
+Copy
+Edit
+methods: {
+  // your other methods...
+
+  sortBy(key) {
+    if (this.sortKey === key) {
+      // if clicking same column, toggle the order
+      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortKey = key;
+      this.sortOrder = 'asc';
+    }
+  }
+}
+4. Update your table <th> to be clickable
+Modify your <thead> like this:
+
+html
+Copy
+Edit
+<thead>
+  <tr>
+    <th>No.</th>
+    <th @click="sortBy('name')" style="cursor: pointer;">
+      Name
+      <span v-if="sortKey === 'name'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+    </th>
+    <th @click="sortBy('category')" style="cursor: pointer;">
+      Category
+      <span v-if="sortKey === 'category'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+    </th>
+    <th @click="sortBy('code')" style="cursor: pointer;">
+      Code
+      <span v-if="sortKey === 'code'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+    </th>
+    <th @click="sortBy('cost')" style="cursor: pointer;">
+      Cost
+      <span v-if="sortKey === 'cost'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+    </th>
+    <th @click="sortBy('quantity_available')" style="cursor: pointer;">
+      Quantity Available
+      <span v-if="sortKey === 'quantity_available'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+    </th>
+    <th class="action-cell">Action</th>
+  </tr>
+</thead>
+🎯 Now:
+Clicking any header (Name, Category, etc) will sort by that column!
+
+Clicking again will reverse the sorting (asc ↔ desc).
+
+▲ (ascending) and ▼ (descending) icons will show next to the active sorted column.
+
+Would you also like me to show you how to make the little ▲ ▼ prettier using SVG icons or Font Awesome icons too? 🎨✨ It will look even more professional!
+Want me to show? 👀

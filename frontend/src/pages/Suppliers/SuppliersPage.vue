@@ -29,8 +29,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(supplier, index) in filteredSuppliers" :key="supplier.id">
-              <td>{{ index + 1 }}</td>
+            <tr v-for="(supplier, index) in paginatedSuppliers" :key="supplier.id">
+              <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
               <td>{{ supplier.full_name }}</td>
               <td>{{ supplier.company_name }}</td>
               <td>{{ supplier.company_address }}</td>
@@ -57,6 +57,26 @@
             <td colspan="7" style="text-align: center;">No suppliers found.</td>
           </tr>
         </table>
+        <div class="pagination">
+          <button @click="currentPage--" :disabled="currentPage === 1" title="Previous">
+            &lt;
+          </button>
+          <span>
+            Page
+            <input
+              type="number"
+              v-model.number="pageInput"
+              @change="goToPage"
+              :min="1"
+              :max="totalPages"
+              style="width: 40px; text-align: center;"
+            />
+            of {{ totalPages }}
+          </span>
+          <button @click="currentPage++" :disabled="currentPage === totalPages" title="Next">
+            &gt;
+          </button>
+        </div>
       </div>
     </div>
   </template>
@@ -68,6 +88,9 @@
     name: 'SuppliersPage',
     data() {
       return {
+        currentPage: 1,
+        pageSize: 5,
+        pageInput: 1,
         searchQuery: '',
         suppliers: [],
         loading: false,
@@ -77,7 +100,23 @@
     mounted() {
         this.fetchSuppliers();
     },
+    watch: {
+      currentPage(val) {
+        this.pageInput = val;
+      },
+      searchQuery() {
+        this.currentPage = 1;
+      }
+    },
     computed: {
+      paginatedSuppliers() {
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return this.filteredSuppliers.slice(start, end);
+      },
+      totalPages() {
+        return Math.ceil(this.filteredSuppliers.length / this.pageSize) || 1;
+      },
       filteredSuppliers() {
         if (!this.searchQuery) {
           return this.suppliers;
@@ -92,6 +131,11 @@
       }
     },
     methods: {
+      goToPage() {
+        if (this.pageInput < 1) this.pageInput = 1;
+        if (this.pageInput > this.totalPages) this.pageInput = this.totalPages;
+        this.currentPage = this.pageInput;
+      },
       async fetchSuppliers() {
         this.loading = true;
         this.errorMessage = "";
@@ -264,6 +308,24 @@
     color: #e53e3e;
     font-size: 15px;
     padding: 12px 16px;
+  }
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .pagination button {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .pagination button:disabled {
+    background: #e2e8f0;
+    cursor: not-allowed;
   }
 
   /* Hide number on mobile */

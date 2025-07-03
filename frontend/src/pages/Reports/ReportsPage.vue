@@ -80,7 +80,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="sale in filteredSales" :key="sale.id">
+            <tr v-for="sale in paginatedSales" :key="sale.id">
               <td>{{ sale.sell_date }}</td>
               <td>{{ sale.product_name }}</td>
               <td>{{ sale.quantity }}</td>
@@ -91,6 +91,26 @@
             </tr>
           </tbody>
         </table>
+        <div class="pagination">
+          <button @click="salesCurrentPage--" :disabled="salesCurrentPage === 1" title="Previous">
+            &lt;
+          </button>
+          <span>
+            Page
+            <input
+              type="number"
+              v-model.number="salesPageInput"
+              @change="goToSalesPage"
+              :min="1"
+              :max="salesTotalPages"
+              style="width: 40px; text-align: center;"
+            />
+            of {{ salesTotalPages }}
+          </span>
+          <button @click="salesCurrentPage++" :disabled="salesCurrentPage === salesTotalPages" title="Next">
+            &gt;
+          </button>
+        </div>
       </div>
     </div>
 
@@ -111,7 +131,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in filteredInventory" :key="entry.id">
+            <tr v-for="entry in paginatedInventory" :key="entry.id">
               <td>{{ entry.created_at ? entry.created_at.split('T')[0] : '-' }}</td>
               <td>{{ entry.product_name }}</td>
               <td>{{ entry.transaction_type }}</td>
@@ -123,6 +143,26 @@
             </tr>
           </tbody>
         </table>
+        <div class="pagination">
+          <button @click="inventoryCurrentPage--" :disabled="inventoryCurrentPage === 1" title="Previous">
+            &lt;
+          </button>
+          <span>
+            Page
+            <input
+              type="number"
+              v-model.number="inventoryPageInput"
+              @change="goToInventoryPage"
+              :min="1"
+              :max="inventoryTotalPages"
+              style="width: 40px; text-align: center;"
+            />
+            of {{ inventoryTotalPages }}
+          </span>
+          <button @click="inventoryCurrentPage++" :disabled="inventoryCurrentPage === inventoryTotalPages" title="Next">
+            &gt;
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -147,10 +187,17 @@ export default {
     const thisMonth = today.slice(0, 7);
     const thisYear = today.slice(0, 4);
     return {
+      salesCurrentPage: 1,
+      salesPageSize: 5,
+      salesPageInput: 1,
+      inventoryCurrentPage: 1,
+      inventoryPageSize: 5,
+      inventoryPageInput: 1,
       viewMode: savedViewMode,
       selectedDate: today,
       selectedMonth: thisMonth,
       selectedYear: thisYear,
+      products: [],
       sales: [],
       inventory: [],
       loadingSales: false,
@@ -166,9 +213,35 @@ export default {
   watch: {
     viewMode(newVal) {
       localStorage.setItem('reportsViewMode', newVal);
+      this.salesCurrentPage = 1;
+      this.salesPageInput = 1;
+      this.inventoryCurrentPage = 1;
+      this.inventoryPageInput = 1;
+    },
+    salesCurrentPage(val) {
+      this.salesPageInput = val;
+    },
+    inventoryCurrentPage(val) {
+      this.inventoryPageInput = val;
     }
   },
   computed: {
+    paginatedSales() {
+      const start = (this.salesCurrentPage - 1) * this.salesPageSize;
+      const end = start + this.salesPageSize;
+      return this.filteredSales.slice(start, end);
+    },
+    salesTotalPages() {
+      return Math.ceil(this.filteredSales.length / this.salesPageSize) || 1;
+    },
+    paginatedInventory() {
+      const start = (this.inventoryCurrentPage - 1) * this.inventoryPageSize;
+      const end = start + this.inventoryPageSize;
+      return this.filteredInventory.slice(start, end);
+    },
+    inventoryTotalPages() {
+      return Math.ceil(this.filteredInventory.length / this.inventoryPageSize) || 1;
+    },
     filteredSales() {
       if (this.viewMode === "daily") {
         return this.sales.filter(s => s.sell_date === this.selectedDate);
@@ -195,10 +268,32 @@ export default {
     },
   },
   mounted() {
+    this.fetchProducts();
     this.fetchSales();
     this.fetchInventory();
   },
   methods: {
+    goToSalesPage() {
+      if (this.salesPageInput < 1) this.salesPageInput = 1;
+      if (this.salesPageInput > this.salesTotalPages) this.salesPageInput = this.salesTotalPages;
+      this.salesCurrentPage = this.salesPageInput;
+    },
+    goToInventoryPage() {
+      if (this.inventoryPageInput < 1) this.inventoryPageInput = 1;
+      if (this.inventoryPageInput > this.inventoryTotalPages) this.inventoryPageInput = this.inventoryTotalPages;
+      this.inventoryCurrentPage = this.inventoryPageInput;
+    },
+    async fetchProducts() {
+      try {
+        const res = await api.get("/api/products/");
+        this.products = res.data;
+      } catch (e) {
+        this.products = [];
+      }
+    },
+    getProductInfo(productName) {
+      return this.products.find(p => p.name === productName) || {};
+    },
     async fetchSales() {
       this.loadingSales = true;
       this.salesError = "";
@@ -257,24 +352,59 @@ export default {
         return;
       }
       const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.text("Sales Report", 14, 18);
-      doc.setFontSize(12);
-      doc.text(`Period: ${this.getReportPeriod()}`, 14, 28);
 
-      autoTable(doc, {
-        startY: 34,
-        head: [["Date", "Product", "Quantity", "Remarks"]],
-        body: this.filteredSales.map(sale => [
+      // 1. Company Branding and Header
+      doc.setFontSize(20);
+      doc.text("OCO", 14, 18);
+      doc.setFontSize(14);
+      doc.text("Sales Report", 14, 28);
+      doc.setFontSize(11);
+      doc.text(`Period: ${this.getReportPeriod()}`, 14, 36);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 43);
+
+      // 2. Sales Table with Product Details
+      const salesRows = this.filteredSales.map(sale => {
+        const info = this.getProductInfo(sale.product_name);
+        return [
           sale.sell_date,
           sale.product_name,
+          info.code || "-",
+          info.category || "-",
+          info.retail_price !== undefined ? this.formatCurrency(info.retail_price) : "-",
           sale.quantity,
           sale.remarks || "-"
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: [0, 102, 204] },
-        styles: { fontSize: 11 }
+        ];
       });
+
+      autoTable(doc, {
+        startY: 50,
+        head: [["Date", "Product", "Code", "Category", "Unit Price", "Quantity", "Remarks"]],
+        body: salesRows,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        styles: { fontSize: 11, cellPadding: 3 }
+      });
+
+      // 3. Totals and Summary Section
+      const totalQty = this.filteredSales.reduce((sum, s) => sum + Number(s.quantity), 0);
+      const totalAmount = this.filteredSales.reduce((sum, s) => {
+        const info = this.getProductInfo(s.product_name);
+        return sum + (Number(info.retail_price) || 0) * Number(s.quantity);
+      }, 0);
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 50 + 8 * (salesRows.length || 1);
+      doc.setFontSize(12);
+      doc.text(`Total Quantity: ${totalQty}`, 14, finalY + 10);
+      doc.text(`Total Sales: ${this.formatCurrency(totalAmount)}`, 14, finalY + 18);
+
+      // 5. Footer with page numbers (optional)
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 10);
+      }
 
       doc.save(`sales_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
       this.showToastMessage("PDF downloaded!", "success");
@@ -286,28 +416,67 @@ export default {
         return;
       }
       const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.text("Restock & Adjustment Report", 14, 18);
-      doc.setFontSize(12);
-      doc.text(`Period: ${this.getReportPeriod()}`, 14, 28);
 
-      autoTable(doc, {
-        startY: 34,
-        head: [["Date", "Product", "Type", "Quantity", "Batch"]],
-        body: this.filteredInventory.map(entry => [
+      // Header
+      doc.setFontSize(20);
+      doc.text("OCO", 14, 18);
+      doc.setFontSize(14);
+      doc.text("Restock & Adjustment Report", 14, 28);
+      doc.setFontSize(11);
+      doc.text(`Period: ${this.getReportPeriod()}`, 14, 36);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 43);
+
+      // Table with product details
+      const inventoryRows = this.filteredInventory.map(entry => {
+        const info = this.getProductInfo(entry.product_name);
+        return [
           entry.created_at ? entry.created_at.split('T')[0] : '-',
           entry.product_name,
+          info.code || "-",
+          info.category || "-",
           entry.transaction_type,
           entry.change_amount,
           entry.batch_id || '-'
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: [0, 102, 204] },
-        styles: { fontSize: 11 }
+        ];
       });
+
+      autoTable(doc, {
+        startY: 50,
+        head: [["Date", "Product", "Code", "Category", "Type", "Quantity", "Batch"]],
+        body: inventoryRows,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        styles: { fontSize: 11, cellPadding: 3 }
+      });
+
+      // Totals
+      const totalRestock = this.filteredInventory
+        .filter(e => e.transaction_type === "restock")
+        .reduce((sum, e) => sum + Number(e.change_amount), 0);
+      const totalAdjustment = this.filteredInventory
+        .filter(e => e.transaction_type === "adjustment" || e.transaction_type === "manual_add")
+        .reduce((sum, e) => sum + Number(e.change_amount), 0);
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 50 + 8 * (inventoryRows.length || 1);
+      doc.setFontSize(12);
+      doc.text(`Total Restocked: ${totalRestock}`, 14, finalY + 10);
+      doc.text(`Total Adjusted: ${totalAdjustment}`, 14, finalY + 18);
+
+      // Footer with page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 10);
+      }
 
       doc.save(`restock_report_${this.viewMode}_${this.getReportPeriod()}.pdf`);
       this.showToastMessage("PDF downloaded!", "success");
+    },
+    formatCurrency(amount) {
+      if (amount === undefined || amount === null || isNaN(amount)) return "-";
+      return "RM " + Number(amount).toLocaleString("en-MY", { minimumFractionDigits: 2 });
     },
     getReportPeriod() {
       if (this.viewMode === "daily") return this.selectedDate;
@@ -477,5 +646,23 @@ td {
   color: #e53e3e;
   font-size: 15px;
   padding: 12px 16px;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
 }
 </style>

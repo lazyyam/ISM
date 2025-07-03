@@ -331,7 +331,7 @@ def upload_payment_receipt(order_id: int, file: UploadFile = File(...), db: Sess
         f.write(file.file.read())
 
     # Update order
-    order.payment_receipt_url = f"/uploads/payment_receipts/{filename}"
+    order.payment_receipt_url = f"uploads/payment_receipts/{filename}"
     order.payment_date = datetime.now()
     order.status = "Paid"
     db.commit()
