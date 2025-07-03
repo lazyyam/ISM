@@ -4,6 +4,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+frontend_url = os.getenv("FRONTEND_URL")
 
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = os.getenv("SMTP_PORT")
@@ -12,7 +13,7 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL")
 
 async def send_reset_email(to_email: str, token: str):
-    reset_link = f"http://localhost:8080/reset-password?token={token}"
+    reset_link = f"{frontend_url}/reset-password?token={token}"
 
     msg = EmailMessage()
     msg["Subject"] = "Password Reset Request"

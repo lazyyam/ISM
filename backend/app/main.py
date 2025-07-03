@@ -15,11 +15,13 @@ from app.controllers.inventory_controller import inventory_router
 from fastapi.staticfiles import StaticFiles
 import os
 
+frontend_url = os.getenv("FRONTEND_URL")
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ism-vuejs-production.up.railway.app"],  # deployed frontend
+    allow_origins=[frontend_url],  # deployed frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
