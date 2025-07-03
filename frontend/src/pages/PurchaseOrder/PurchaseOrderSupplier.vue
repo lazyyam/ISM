@@ -556,7 +556,8 @@ export default {
     receiptUrl(path) {
       if (!path) return "#";
       if (path.startsWith("https")) return path;
-      return `${process.env.VUE_APP_API_BASE_URL || ""}/${path.replace(/^\/+/, "")}`;
+      const base = (process.env.VUE_APP_API_BASE_URL || "").replace(/\/+$/, "");
+      return `${base}/${path.replace(/^\/+/, "")}`;
     },
     showInvoiceButton(order) {
       return order && !['Pending', 'Declined'].includes(order.status);
