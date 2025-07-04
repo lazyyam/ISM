@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ism-app
+  namespace: kubernetes-dashboard
   labels:
     app: ism
 spec:
@@ -15,8 +16,8 @@ spec:
         app: ism
     spec:
       containers:
-      - name: ism-container
-        image: yamzhan/ism-demov1:latest
-        ports:
-        - containerPort: 8000
-        imagePullPolicy: Always
+        - name: ism-container
+          image: yamzhan/ism-demov1:latest
+          ports:
+            - containerPort: 8000
+          imagePullPolicy: Always
