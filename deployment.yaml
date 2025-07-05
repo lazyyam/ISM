@@ -23,4 +23,4 @@ spec:
           imagePullPolicy: Always
           env:
             - name: DATABASE_URL
-              value: "mysql+pymysql://root:1111@localhost:3306/ism_test"
+              value: "mysql+pymysql://root:OOqohPjpZZvNmGtSQyDXMWSWdAXbLQZp@metro.proxy.rlwy.net:46656/railway"
