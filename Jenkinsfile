@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    PYTHONPATH = "ISM/backend"
+    PYTHONPATH = "backend"
     DATABASE_URL = "sqlite:///:memory:"
   }
 
@@ -19,16 +19,23 @@ pipeline {
       }
     }
 
+    stage('Debug Workspace') {
+      steps {
+        bat 'dir'
+        bat 'dir backend'
+      }
+    }
+
     stage('Install Dependencies') {
       steps {
-        bat 'pip install -r ISM/backend/requirements.txt'
+        bat 'pip install -r backend/requirements.txt'
         bat 'pip install pytest pytest-cov'
       }
     }
 
     stage('Run Tests') {
       steps {
-        bat 'pytest ISM/backend/test --cov=ISM/backend/app --cov-report=xml'
+        bat 'pytest backend/test --cov=backend/app --cov-report=xml'
       }
     }
 
@@ -39,7 +46,7 @@ pipeline {
             bat """
               sonar-scanner ^
                 -Dsonar.login=%SONAR_TOKEN% ^
-                -Dproject.settings=ISM/sonar-project.properties
+                -Dproject.settings=sonar-project.properties
             """
           }
         }
