@@ -60,7 +60,7 @@ pipeline {
                         credentialsId: 'kubernets-jenkins',
                         namespace: 'default',
                         restrictKubeConfigAccess: false,
-                        serverUrl: 'http://127.0.0.1:51289'
+                        serverUrl: 'http://127.0.0.1:58106'
                     ) {
                         bat 'kubectl apply -f deployment.yaml'
                         bat 'kubectl apply -f service.yaml'
